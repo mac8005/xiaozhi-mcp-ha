@@ -19,6 +19,7 @@ from homeassistant.config_entries import ConfigEntry
 # Define domain constant directly to avoid importing from integration
 DOMAIN = "xiaozhi_mcp"
 
+
 @pytest.fixture
 def mock_config_entry():
     """Create a mock config entry."""

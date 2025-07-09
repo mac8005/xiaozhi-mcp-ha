@@ -10,19 +10,23 @@ from homeassistant.config_entries import ConfigEntry
 DOMAIN = "xiaozhi_mcp"
 CONF_XIAOZHI_ENDPOINT = "xiaozhi_endpoint"
 
+
 async def test_config_flow(hass: HomeAssistant):
     """Test the config flow."""
     # Create a config flow instance
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}
     )
-    
+
     # Test initial form
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
-    
+
     # Test form with valid data
-    with patch('custom_components.xiaozhi_mcp.config_flow.validate_input', return_value={"title": "Test"}):
+    with patch(
+        "custom_components.xiaozhi_mcp.config_flow.validate_input",
+        return_value={"title": "Test"},
+    ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
@@ -31,10 +35,11 @@ async def test_config_flow(hass: HomeAssistant):
                 "access_token": "test_token",
                 "scan_interval": 30,
                 "enable_logging": False,
-            }
+            },
         )
         assert result["type"] == FlowResultType.CREATE_ENTRY
         assert result["title"] == "Test"
+
 
 async def test_config_flow_already_configured(hass: HomeAssistant):
     """Test that we abort if already configured."""
@@ -50,13 +55,16 @@ async def test_config_flow_already_configured(hass: HomeAssistant):
         unique_id="wss://test.xiaozhi.me/mcp",
     )
     hass.config_entries.async_add(config_entry)
-    
+
     # Try to configure again
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}
     )
-    
-    with patch('custom_components.xiaozhi_mcp.config_flow.validate_input', return_value={"title": "Test"}):
+
+    with patch(
+        "custom_components.xiaozhi_mcp.config_flow.validate_input",
+        return_value={"title": "Test"},
+    ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
@@ -65,7 +73,7 @@ async def test_config_flow_already_configured(hass: HomeAssistant):
                 "access_token": "test_token",
                 "scan_interval": 30,
                 "enable_logging": False,
-            }
+            },
         )
         assert result["type"] == FlowResultType.ABORT
         assert result["reason"] == "already_configured"

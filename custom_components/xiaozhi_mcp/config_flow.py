@@ -1,4 +1,5 @@
 """Config flow for Xiaozhi MCP integration."""
+
 from __future__ import annotations
 
 import logging
@@ -27,31 +28,34 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-DATA_SCHEMA = vol.Schema({
-    vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
-    vol.Required(CONF_XIAOZHI_ENDPOINT): str,
-    vol.Required(CONF_ACCESS_TOKEN): str,
-    vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
-    vol.Optional(CONF_ENABLE_LOGGING, default=DEFAULT_ENABLE_LOGGING): bool,
-})
+DATA_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
+        vol.Required(CONF_XIAOZHI_ENDPOINT): str,
+        vol.Required(CONF_ACCESS_TOKEN): str,
+        vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
+        vol.Optional(CONF_ENABLE_LOGGING, default=DEFAULT_ENABLE_LOGGING): bool,
+    }
+)
 
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
     xiaozhi_endpoint = data[CONF_XIAOZHI_ENDPOINT]
     access_token = data[CONF_ACCESS_TOKEN]
-    
+
     # Validate Xiaozhi endpoint
     if not xiaozhi_endpoint.startswith(("ws://", "wss://")):
         raise InvalidEndpoint("Xiaozhi endpoint must start with ws:// or wss://")
-    
+
     # Validate access token
     if not access_token or len(access_token) < 10:
         raise AuthenticationFailed("Access token must be at least 10 characters long")
-    
+
     # Test Xiaozhi connection
     try:
         import websockets
+
         async with websockets.connect(xiaozhi_endpoint, timeout=10) as websocket:
             # Send a simple ping to test connection
             await websocket.send('{"jsonrpc": "2.0", "method": "ping", "id": 1}')
@@ -60,17 +64,19 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     except Exception as err:
         _LOGGER.error("Failed to connect to Xiaozhi endpoint: %s", err)
         raise ConnectionFailed(f"Cannot connect to Xiaozhi endpoint: {err}")
-    
+
     # Test Home Assistant MCP Server connection
     try:
         from .mcp_client import XiaozhiMCPClient
-        
+
         mcp_client = XiaozhiMCPClient(hass, access_token)
         mcp_connected = await mcp_client.test_connection()
-        
+
         if not mcp_connected:
-            raise ConnectionFailed("Cannot connect to Home Assistant MCP Server. Please ensure the MCP Server integration is installed and running.")
-        
+            raise ConnectionFailed(
+                "Cannot connect to Home Assistant MCP Server. Please ensure the MCP Server integration is installed and running."
+            )
+
         # Return info that you want to store in the config entry
         return {
             "title": data[CONF_NAME],
@@ -111,7 +117,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Check if already configured
             await self.async_set_unique_id(user_input[CONF_XIAOZHI_ENDPOINT])
             self._abort_if_unique_id_configured()
-            
+
             return self.async_create_entry(title=info["title"], data=user_input)
 
         return self.async_show_form(
@@ -136,20 +142,22 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        data_schema = vol.Schema({
-            vol.Optional(
-                CONF_SCAN_INTERVAL,
-                default=self.config_entry.options.get(
-                    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-                ),
-            ): int,
-            vol.Optional(
-                CONF_ENABLE_LOGGING,
-                default=self.config_entry.options.get(
-                    CONF_ENABLE_LOGGING, DEFAULT_ENABLE_LOGGING
-                ),
-            ): bool,
-        })
+        data_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_SCAN_INTERVAL,
+                    default=self.config_entry.options.get(
+                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                    ),
+                ): int,
+                vol.Optional(
+                    CONF_ENABLE_LOGGING,
+                    default=self.config_entry.options.get(
+                        CONF_ENABLE_LOGGING, DEFAULT_ENABLE_LOGGING
+                    ),
+                ): bool,
+            }
+        )
 
         return self.async_show_form(step_id="init", data_schema=data_schema)
 

@@ -11,6 +11,7 @@ sys.path.insert(0, str(project_root))
 try:
     # This should work in CI where homeassistant is installed
     from custom_components.xiaozhi_mcp.const import DOMAIN
+
     print(f"✓ Successfully imported DOMAIN: {DOMAIN}")
 except ModuleNotFoundError as e:
     print(f"✗ Import failed (expected in dev environment): {e}")

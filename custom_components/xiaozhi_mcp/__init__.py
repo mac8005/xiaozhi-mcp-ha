@@ -1,4 +1,5 @@
 """The Xiaozhi MCP integration."""
+
 from __future__ import annotations
 
 import logging
@@ -84,15 +85,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     _LOGGER.info("Unloading Xiaozhi MCP entry: %s", entry.data[CONF_NAME])
-    
+
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    
+
     if unload_ok:
         # Cleanup coordinator
         coordinator = hass.data[DOMAIN].pop(entry.entry_id)
         await coordinator.async_shutdown()
-        
+
         # Remove services if no more entries
         if not hass.data[DOMAIN]:
             hass.services.async_remove(DOMAIN, SERVICE_RECONNECT)
@@ -107,26 +108,28 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await async_setup_entry(hass, entry)
 
 
-async def _async_setup_services(hass: HomeAssistant, coordinator: XiaozhiMCPCoordinator) -> None:
+async def _async_setup_services(
+    hass: HomeAssistant, coordinator: XiaozhiMCPCoordinator
+) -> None:
     """Set up services for the integration."""
-    
+
     async def handle_reconnect(call) -> None:
         """Handle reconnect service call."""
         await coordinator.async_reconnect()
-    
+
     async def handle_send_message(call) -> None:
         """Handle send message service call."""
         message = call.data.get("message")
         if message:
             await coordinator.async_send_message(message)
-    
+
     # Register services
     hass.services.async_register(
         DOMAIN,
         SERVICE_RECONNECT,
         handle_reconnect,
     )
-    
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_SEND_MESSAGE,

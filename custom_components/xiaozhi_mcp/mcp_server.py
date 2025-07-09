@@ -1,4 +1,5 @@
 """MCP Server implementation for Xiaozhi integration."""
+
 from __future__ import annotations
 
 import json
@@ -28,7 +29,7 @@ class XiaozhiMCPServer:
         self.hass = hass
         self.access_token = access_token
         self.session = async_get_clientsession(hass)
-        
+
         # Setup request handlers
         self._handlers = {
             "initialize": self._handle_initialize,
@@ -43,10 +44,10 @@ class XiaozhiMCPServer:
             method = message.get("method")
             message_id = message.get("id")
             params = message.get("params", {})
-            
+
             if method in self._handlers:
                 result = await self._handlers[method](params)
-                
+
                 if message_id:
                     return {
                         "jsonrpc": "2.0",
@@ -64,7 +65,7 @@ class XiaozhiMCPServer:
                             "message": "Method not found",
                         },
                     }
-                    
+
         except Exception as err:
             _LOGGER.error("Error handling message: %s", err)
             if message.get("id"):
@@ -76,7 +77,7 @@ class XiaozhiMCPServer:
                         "message": f"Internal error: {err}",
                     },
                 }
-        
+
         return None
 
     async def _handle_initialize(self, params: dict[str, Any]) -> dict[str, Any]:
@@ -98,15 +99,13 @@ class XiaozhiMCPServer:
 
     async def _handle_tools_list(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle tools list request."""
-        return {
-            "tools": list(MCP_TOOLS.values())
-        }
+        return {"tools": list(MCP_TOOLS.values())}
 
     async def _handle_tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle tools call request."""
         tool_name = params.get("name")
         arguments = params.get("arguments", {})
-        
+
         if tool_name == "get_state":
             return await self._get_state(arguments)
         elif tool_name == "call_service":
@@ -129,14 +128,14 @@ class XiaozhiMCPServer:
         entity_id = arguments.get("entity_id")
         if not entity_id:
             raise ValueError("entity_id is required")
-        
+
         state = self.hass.states.get(entity_id)
         if not state:
             return {
                 "success": False,
                 "error": f"Entity {entity_id} not found",
             }
-        
+
         return {
             "success": True,
             "entity_id": entity_id,
@@ -151,10 +150,10 @@ class XiaozhiMCPServer:
         domain = arguments.get("domain")
         service = arguments.get("service")
         service_data = arguments.get("service_data", {})
-        
+
         if not domain or not service:
             raise ValueError("domain and service are required")
-        
+
         try:
             await self.hass.services.async_call(
                 domain, service, service_data, blocking=True
@@ -172,21 +171,23 @@ class XiaozhiMCPServer:
     async def _list_entities(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """List entities in Home Assistant."""
         domain_filter = arguments.get("domain")
-        
+
         entities = []
         for state in self.hass.states.async_all():
             if domain_filter and not state.entity_id.startswith(f"{domain_filter}."):
                 continue
-            
-            entities.append({
-                "entity_id": state.entity_id,
-                "name": state.attributes.get("friendly_name", state.entity_id),
-                "state": state.state,
-                "domain": state.domain,
-                "device_class": state.attributes.get("device_class"),
-                "unit_of_measurement": state.attributes.get("unit_of_measurement"),
-            })
-        
+
+            entities.append(
+                {
+                    "entity_id": state.entity_id,
+                    "name": state.attributes.get("friendly_name", state.entity_id),
+                    "state": state.state,
+                    "domain": state.domain,
+                    "device_class": state.attributes.get("device_class"),
+                    "unit_of_measurement": state.attributes.get("unit_of_measurement"),
+                }
+            )
+
         return {
             "success": True,
             "entities": entities,
@@ -196,16 +197,18 @@ class XiaozhiMCPServer:
     async def _get_areas(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """Get areas in Home Assistant."""
         area_reg = area_registry.async_get(self.hass)
-        
+
         areas = []
         for area in area_reg.areas.values():
-            areas.append({
-                "area_id": area.id,
-                "name": area.name,
-                "aliases": area.aliases,
-                "picture": area.picture,
-            })
-        
+            areas.append(
+                {
+                    "area_id": area.id,
+                    "name": area.name,
+                    "aliases": area.aliases,
+                    "picture": area.picture,
+                }
+            )
+
         return {
             "success": True,
             "areas": areas,
@@ -216,22 +219,24 @@ class XiaozhiMCPServer:
         """Get devices in Home Assistant."""
         area_id = arguments.get("area_id")
         device_reg = device_registry.async_get(self.hass)
-        
+
         devices = []
         for device in device_reg.devices.values():
             if area_id and device.area_id != area_id:
                 continue
-            
-            devices.append({
-                "device_id": device.id,
-                "name": device.name or device.name_by_user,
-                "manufacturer": device.manufacturer,
-                "model": device.model,
-                "area_id": device.area_id,
-                "sw_version": device.sw_version,
-                "identifiers": list(device.identifiers),
-            })
-        
+
+            devices.append(
+                {
+                    "device_id": device.id,
+                    "name": device.name or device.name_by_user,
+                    "manufacturer": device.manufacturer,
+                    "model": device.model,
+                    "area_id": device.area_id,
+                    "sw_version": device.sw_version,
+                    "identifiers": list(device.identifiers),
+                }
+            )
+
         return {
             "success": True,
             "devices": devices,

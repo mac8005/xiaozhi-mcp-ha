@@ -1,4 +1,5 @@
 """Data update coordinator for Xiaozhi MCP."""
+
 from __future__ import annotations
 
 import asyncio
@@ -58,13 +59,13 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
             name=name,
             update_interval=timedelta(seconds=scan_interval),
         )
-        
+
         self.config_entry = config_entry
         self.xiaozhi_endpoint = xiaozhi_endpoint
         self.access_token = access_token
         self.scan_interval = scan_interval
         self.enable_logging = config_entry.data.get(CONF_ENABLE_LOGGING, False)
-        
+
         # Connection state
         self._connected = False
         self._websocket = None
@@ -75,43 +76,45 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         self._last_seen = None
         self._reconnect_task = None
         self._backoff = INITIAL_BACKOFF
-        
+
         # Setup MCP client
         self._mcp_client = XiaozhiMCPClient(hass, access_token)
 
     async def async_setup(self) -> None:
         """Set up the coordinator."""
         _LOGGER.info("Setting up Xiaozhi MCP coordinator")
-        
+
         # Test MCP Server connection first
         mcp_connected = await self._mcp_client.test_connection()
         if not mcp_connected:
-            _LOGGER.error("Cannot connect to Home Assistant MCP Server. Please ensure the MCP Server integration is installed and running.")
+            _LOGGER.error(
+                "Cannot connect to Home Assistant MCP Server. Please ensure the MCP Server integration is installed and running."
+            )
             raise ConfigEntryNotReady("MCP Server integration not available")
-        
+
         # Start initial connection
         await self.async_reconnect()
-        
+
         # Start status update
         await self.async_refresh()
 
     async def async_shutdown(self) -> None:
         """Shutdown the coordinator."""
         _LOGGER.info("Shutting down Xiaozhi MCP coordinator")
-        
+
         if self._reconnect_task:
             self._reconnect_task.cancel()
-            
+
         if self._websocket:
             await self._websocket.close()
-            
+
         self._connected = False
 
     async def async_reconnect(self) -> None:
         """Reconnect to the Xiaozhi MCP endpoint."""
         if self._reconnect_task:
             self._reconnect_task.cancel()
-            
+
         self._reconnect_task = asyncio.create_task(self._reconnect_loop())
 
     async def _reconnect_loop(self) -> None:
@@ -126,49 +129,49 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
                         self._reconnect_count,
                     )
                     await asyncio.sleep(wait_time)
-                
+
                 await self._connect()
-                
+
                 # Reset backoff on successful connection
                 self._backoff = INITIAL_BACKOFF
                 break
-                
+
             except Exception as err:
                 self._reconnect_count += 1
                 self._error_count += 1
-                
+
                 if self._reconnect_count > MAX_RECONNECT_ATTEMPTS:
                     _LOGGER.error("Max reconnection attempts reached, giving up")
                     break
-                
+
                 _LOGGER.warning(
                     "Connection failed (attempt %d): %s",
                     self._reconnect_count,
                     err,
                 )
-                
+
                 # Exponential backoff
                 self._backoff = min(self._backoff * 2, MAX_BACKOFF)
 
     async def _connect(self) -> None:
         """Connect to the WebSocket endpoint."""
         _LOGGER.info("Connecting to Xiaozhi MCP endpoint: %s", self.xiaozhi_endpoint)
-        
+
         try:
             self._websocket = await websockets.connect(
                 self.xiaozhi_endpoint,
                 timeout=30,
             )
-            
+
             self._connected = True
             self._last_seen = datetime.now()
             self._reconnect_count = 0
-            
+
             _LOGGER.info("Successfully connected to Xiaozhi MCP endpoint")
-            
+
             # Start message handling
             await self._handle_messages()
-            
+
         except Exception as err:
             self._connected = False
             self._error_count += 1
@@ -181,23 +184,23 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
             async for message in self._websocket:
                 self._message_count += 1
                 self._last_seen = datetime.now()
-                
+
                 if self.enable_logging:
                     _LOGGER.debug("Received message: %s", message[:200])
-                
+
                 try:
                     data = json.loads(message)
                     response = await self._mcp_client.forward_message(data)
-                    
+
                     if response:
                         await self._websocket.send(json.dumps(response))
-                        
+
                 except json.JSONDecodeError:
                     _LOGGER.error("Failed to parse JSON message: %s", message)
                 except Exception as err:
                     _LOGGER.error("Error handling message: %s", err)
                     self._error_count += 1
-                    
+
         except ConnectionClosed:
             _LOGGER.warning("WebSocket connection closed")
             self._connected = False
@@ -214,14 +217,14 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         """Send a message to the Xiaozhi endpoint."""
         if not self._connected or not self._websocket:
             raise UpdateFailed("Not connected to Xiaozhi MCP endpoint")
-        
+
         try:
             await self._websocket.send(json.dumps(message))
             self._message_count += 1
-            
+
             if self.enable_logging:
                 _LOGGER.debug("Sent message: %s", json.dumps(message)[:200])
-                
+
         except Exception as err:
             _LOGGER.error("Failed to send message: %s", err)
             self._error_count += 1

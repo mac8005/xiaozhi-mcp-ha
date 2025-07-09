@@ -1,4 +1,5 @@
 """Constants for the Xiaozhi MCP integration."""
+
 from typing import Final
 
 # Integration domain

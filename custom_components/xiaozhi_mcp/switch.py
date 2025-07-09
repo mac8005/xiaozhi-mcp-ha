@@ -1,4 +1,5 @@
 """Switch platform for Xiaozhi MCP integration."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -34,11 +35,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up Xiaozhi MCP switch platform."""
     coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    
+
     entities = []
     for description in SWITCH_DESCRIPTIONS:
         entities.append(XiaozhiMCPSwitch(coordinator, description))
-    
+
     async_add_entities(entities)
 
 

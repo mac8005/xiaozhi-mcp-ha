@@ -1,4 +1,5 @@
 """Sensor platform for Xiaozhi MCP integration."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -57,11 +58,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up Xiaozhi MCP sensor platform."""
     coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    
+
     entities = []
     for description in SENSOR_DESCRIPTIONS:
         entities.append(XiaozhiMCPSensor(coordinator, description))
-    
+
     async_add_entities(entities)
 
 
@@ -114,7 +115,11 @@ class XiaozhiMCPSensor(CoordinatorEntity, SensorEntity):
         if self.entity_description.key == "status":
             return {
                 ATTR_CONNECTED: self.coordinator.connected,
-                ATTR_LAST_SEEN: self.coordinator.last_seen.isoformat() if self.coordinator.last_seen else None,
+                ATTR_LAST_SEEN: (
+                    self.coordinator.last_seen.isoformat()
+                    if self.coordinator.last_seen
+                    else None
+                ),
                 ATTR_RECONNECT_COUNT: self.coordinator.reconnect_count,
                 ATTR_MESSAGE_COUNT: self.coordinator.message_count,
                 ATTR_ERROR_COUNT: self.coordinator.error_count,
