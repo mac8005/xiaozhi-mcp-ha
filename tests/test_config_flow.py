@@ -5,8 +5,10 @@ from unittest.mock import patch, AsyncMock
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.config_entries import ConfigEntry
-from custom_components.xiaozhi_mcp.config_flow import ConfigFlow
-from custom_components.xiaozhi_mcp.const import DOMAIN, CONF_XIAOZHI_ENDPOINT
+
+# Define constants directly to avoid importing from integration
+DOMAIN = "xiaozhi_mcp"
+CONF_XIAOZHI_ENDPOINT = "xiaozhi_endpoint"
 
 async def test_config_flow(hass: HomeAssistant):
     """Test the config flow."""

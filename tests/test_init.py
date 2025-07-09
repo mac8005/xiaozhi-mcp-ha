@@ -4,8 +4,9 @@ import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
-from custom_components.xiaozhi_mcp import async_setup_entry, async_unload_entry
-from custom_components.xiaozhi_mcp.const import DOMAIN
+
+# Define domain constant directly to avoid importing from integration
+DOMAIN = "xiaozhi_mcp"
 
 async def test_setup_entry(hass: HomeAssistant, mock_config_entry: ConfigEntry):
     """Test setting up the integration."""
@@ -34,6 +35,8 @@ async def test_setup_entry(hass: HomeAssistant, mock_config_entry: ConfigEntry):
         # Configure services setup mock
         mock_setup_services.return_value = None
         
+        # Import and call the setup function
+        from custom_components.xiaozhi_mcp import async_setup_entry
         result = await async_setup_entry(hass, mock_config_entry)
         assert result is True
         assert DOMAIN in hass.data
@@ -68,6 +71,9 @@ async def test_unload_entry(hass: HomeAssistant, mock_config_entry: ConfigEntry)
         
         # Configure services setup mock
         mock_setup_services.return_value = None
+        
+        # Import the functions
+        from custom_components.xiaozhi_mcp import async_setup_entry, async_unload_entry
         
         # First setup
         await async_setup_entry(hass, mock_config_entry)

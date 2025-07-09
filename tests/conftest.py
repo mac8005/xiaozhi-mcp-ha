@@ -15,7 +15,9 @@ sys.path.insert(0, str(project_root))
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
-from custom_components.xiaozhi_mcp.const import DOMAIN
+
+# Define domain constant directly to avoid importing from integration
+DOMAIN = "xiaozhi_mcp"
 
 @pytest.fixture
 def mock_config_entry():
