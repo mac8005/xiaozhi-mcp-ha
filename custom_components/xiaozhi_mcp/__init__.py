@@ -12,11 +12,11 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
 from .const import (
-    DOMAIN,
-    CONF_XIAOZHI_ENDPOINT,
     CONF_ACCESS_TOKEN,
     CONF_SCAN_INTERVAL,
+    CONF_XIAOZHI_ENDPOINT,
     DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
     SERVICE_RECONNECT,
     SERVICE_SEND_MESSAGE,
 )

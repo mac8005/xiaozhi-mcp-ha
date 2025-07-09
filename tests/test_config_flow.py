@@ -1,10 +1,11 @@
 """Test the config flow."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.config_entries import ConfigEntry
 
 # Define constants directly to avoid importing from integration
 DOMAIN = "xiaozhi_mcp"

@@ -1,9 +1,10 @@
 """Test the Xiaozhi MCP integration."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 # Define domain constant directly to avoid importing from integration
 DOMAIN = "xiaozhi_mcp"

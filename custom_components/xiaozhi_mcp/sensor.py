@@ -13,12 +13,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    DOMAIN,
     ATTR_CONNECTED,
-    ATTR_LAST_SEEN,
-    ATTR_RECONNECT_COUNT,
-    ATTR_MESSAGE_COUNT,
     ATTR_ERROR_COUNT,
+    ATTR_LAST_SEEN,
+    ATTR_MESSAGE_COUNT,
+    ATTR_RECONNECT_COUNT,
+    DOMAIN,
 )
 from .coordinator import XiaozhiMCPCoordinator
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Simple test to verify conftest.py path setup works."""
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add the project root to the Python path

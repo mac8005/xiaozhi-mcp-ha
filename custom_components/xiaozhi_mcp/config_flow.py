@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
-import voluptuous as vol
-import aiohttp
-import asyncio
 
+import aiohttp
+import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
@@ -15,14 +15,14 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
-    DOMAIN,
-    CONF_XIAOZHI_ENDPOINT,
     CONF_ACCESS_TOKEN,
-    CONF_SCAN_INTERVAL,
     CONF_ENABLE_LOGGING,
-    DEFAULT_SCAN_INTERVAL,
-    DEFAULT_NAME,
+    CONF_SCAN_INTERVAL,
+    CONF_XIAOZHI_ENDPOINT,
     DEFAULT_ENABLE_LOGGING,
+    DEFAULT_NAME,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
     ERROR_CODES,
 )
 
