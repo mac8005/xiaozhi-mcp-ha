@@ -10,18 +10,63 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create ZIP file for HACS
+        run: |
+          cd custom_components
+          zip -r ../xiaozhi_mcp.zip xiaozhi_mcp/
+          cd ..
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          if [ -f "CHANGELOG.md" ]; then
+            echo "CHANGELOG_CONTENT<<EOF" >> $GITHUB_OUTPUT
+            awk '/^## \[/{if(p) exit; p=1} p' CHANGELOG.md >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "CHANGELOG_CONTENT=No changelog available" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## 🚀 Release ${{ github.ref_name }}
+
+            ### 📦 Installation
+            This release can be installed via:
+            1. **HACS** (recommended): Add this repository as a custom integration
+            2. **Manual**: Download `xiaozhi_mcp.zip` and extract to `custom_components/`
+
+            ### 🔧 Requirements
+            - Home Assistant 2024.1.0 or later
+            - Home Assistant MCP Server integration (must be installed first)
+            - Xiaozhi ESP32 device or compatible hardware
+
+            ### 📋 What's New
+            ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
+
+            ### 🆘 Support
+            - 🐛 [Report Issues](https://github.com/mac8005/xiaozhi-mcp-hacs/issues)
+            - 💬 [Discussions](https://github.com/mac8005/xiaozhi-mcp-hacs/discussions)
+            - 📖 [Documentation](https://github.com/mac8005/xiaozhi-mcp-hacs/blob/main/README.md)
+
+            ### 🔗 Quick Links
+            - [Installation Guide](https://github.com/mac8005/xiaozhi-mcp-hacs#installation)
+            - [Configuration Help](https://github.com/mac8005/xiaozhi-mcp-hacs#configuration)
+            - [Troubleshooting](https://github.com/mac8005/xiaozhi-mcp-hacs#troubleshooting)
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+          files: |
+            xiaozhi_mcp.zip
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            Release ${{ github.ref }}
-
-            See [CHANGELOG.md](CHANGELOG.md) for details.
-          draft: false
-          prerelease: false
