@@ -156,3 +156,5 @@ Desktop.ini
 # Test files
 test_config/
 setup_repo.sh
+FINAL_COMPLIANCE_STATUS.md
+TEST_FIXES_SUMMARY.md

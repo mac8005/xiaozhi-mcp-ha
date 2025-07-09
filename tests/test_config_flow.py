@@ -54,6 +54,8 @@ async def test_config_flow_already_configured(hass: HomeAssistant):
         source="test",
         entry_id="test_entry_id",
         unique_id="wss://test.xiaozhi.me/mcp",
+        discovery_keys=set(),
+        options={},
     )
     hass.config_entries.async_add(config_entry)
 

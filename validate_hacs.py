@@ -30,7 +30,7 @@ def validate_json_file(file_path, description):
     """Validate a JSON file."""
     print(f"Validating {description}...")
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             data = json.load(f)
         print(f"✓ {description} is valid JSON")
         return True, data
@@ -46,13 +46,13 @@ def validate_manifest():
     )
     if not success:
         return False
-    
+
     required_fields = ["domain", "name", "version", "documentation", "requirements"]
     for field in required_fields:
         if field not in manifest:
             print(f"✗ manifest.json missing required field: {field}")
             return False
-    
+
     print(f"✓ manifest.json contains all required fields")
     return True
 
@@ -62,13 +62,13 @@ def validate_hacs():
     success, hacs = validate_json_file("hacs.json", "hacs.json")
     if not success:
         return False
-    
+
     required_fields = ["name", "render_readme"]
     for field in required_fields:
         if field not in hacs:
             print(f"✗ hacs.json missing required field: {field}")
             return False
-    
+
     print(f"✓ hacs.json contains all required fields")
     return True
 
@@ -78,15 +78,14 @@ def validate_imports():
     print("Validating imports...")
     try:
         # Test HomeAssistant imports
-        from homeassistant.core import HomeAssistant
         from homeassistant.config_entries import ConfigEntry
-        
+        from homeassistant.core import HomeAssistant
+
         # Test integration imports
-        from custom_components.xiaozhi_mcp import DOMAIN
-        from custom_components.xiaozhi_mcp import async_setup_entry
+        from custom_components.xiaozhi_mcp import DOMAIN, async_setup_entry
         from custom_components.xiaozhi_mcp.coordinator import XiaozhiMCPCoordinator
         from custom_components.xiaozhi_mcp.mcp_client import XiaozhiMCPClient
-        
+
         print("✓ All imports successful")
         return True
     except ImportError as e:
@@ -109,16 +108,16 @@ def validate_files():
         "README.md",
         "LICENSE",
     ]
-    
+
     missing_files = []
     for file_path in required_files:
         if not os.path.exists(file_path):
             missing_files.append(file_path)
-    
+
     if missing_files:
         print(f"✗ Missing files: {missing_files}")
         return False
-    
+
     print("✓ All required files present")
     return True
 
@@ -127,29 +126,28 @@ def main():
     """Main validation function."""
     print("Starting HACS compliance validation...")
     print("=" * 60)
-    
+
     all_checks_passed = True
-    
+
     # File structure validation
     all_checks_passed &= validate_files()
-    
+
     # JSON validation
     all_checks_passed &= validate_manifest()
     all_checks_passed &= validate_hacs()
-    
+
     # Import validation
     all_checks_passed &= validate_imports()
-    
+
     # Code formatting validation
     all_checks_passed &= run_command(
-        "black --check custom_components/ tests/", 
-        "code formatting (black)"
+        "black --check custom_components/ tests/", "code formatting (black)"
     )
     all_checks_passed &= run_command(
-        "isort --check-only --profile black custom_components/ tests/", 
-        "import sorting (isort)"
+        "isort --check-only --profile black custom_components/ tests/",
+        "import sorting (isort)",
     )
-    
+
     print("=" * 60)
     if all_checks_passed:
         print("🎉 All HACS compliance checks passed!")

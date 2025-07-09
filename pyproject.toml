@@ -4,3 +4,14 @@ multi_line_output = 3
 line_length = 88
 known_first_party = ["custom_components"]
 skip_glob = ["*/__pycache__/*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_paths = ["."]
+addopts = ["-v", "--tb=short", "--strict-markers"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning"
+]
