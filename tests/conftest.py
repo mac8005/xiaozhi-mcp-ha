@@ -4,8 +4,6 @@
 pytest_plugins = "pytest_homeassistant_custom_component"
 
 import os
-
-# Test fixtures and configuration
 import sys
 from pathlib import Path
 
@@ -13,12 +11,21 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# Set up environment variables for Home Assistant testing
+os.environ["PYTEST_CURRENT_TEST"] = "true"
+
 import pytest
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 # Define domain constant directly to avoid importing from integration
 DOMAIN = "xiaozhi_mcp"
+
+
+@pytest.fixture(autouse=True)
+def auto_enable_custom_integrations(enable_custom_integrations):
+    """Enable custom integrations for all tests."""
+    yield
 
 
 @pytest.fixture
