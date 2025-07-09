@@ -14,17 +14,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import (
-    CONF_ACCESS_TOKEN,
-    CONF_ENABLE_LOGGING,
-    CONF_SCAN_INTERVAL,
-    CONF_XIAOZHI_ENDPOINT,
-    DEFAULT_ENABLE_LOGGING,
-    DEFAULT_NAME,
-    DEFAULT_SCAN_INTERVAL,
-    DOMAIN,
-    ERROR_CODES,
-)
+from .const import (CONF_ACCESS_TOKEN, CONF_ENABLE_LOGGING, CONF_SCAN_INTERVAL,
+                    CONF_XIAOZHI_ENDPOINT, DEFAULT_ENABLE_LOGGING,
+                    DEFAULT_NAME, DEFAULT_SCAN_INTERVAL, DOMAIN, ERROR_CODES)
 
 _LOGGER = logging.getLogger(__name__)
 

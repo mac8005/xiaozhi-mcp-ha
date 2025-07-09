@@ -11,15 +11,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
-from .const import (
-    CONF_ACCESS_TOKEN,
-    CONF_SCAN_INTERVAL,
-    CONF_XIAOZHI_ENDPOINT,
-    DEFAULT_SCAN_INTERVAL,
-    DOMAIN,
-    SERVICE_RECONNECT,
-    SERVICE_SEND_MESSAGE,
-)
+from .const import (CONF_ACCESS_TOKEN, CONF_SCAN_INTERVAL,
+                    CONF_XIAOZHI_ENDPOINT, DEFAULT_SCAN_INTERVAL, DOMAIN,
+                    SERVICE_RECONNECT, SERVICE_SEND_MESSAGE)
 from .coordinator import XiaozhiMCPCoordinator
 
 _LOGGER = logging.getLogger(__name__)

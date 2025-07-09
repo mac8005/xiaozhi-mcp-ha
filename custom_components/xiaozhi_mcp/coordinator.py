@@ -16,24 +16,15 @@ from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import (DataUpdateCoordinator,
+                                                      UpdateFailed)
 from websockets.exceptions import ConnectionClosed, WebSocketException
 
-from .const import (
-    ATTR_CONNECTED,
-    ATTR_ERROR_COUNT,
-    ATTR_LAST_SEEN,
-    ATTR_MESSAGE_COUNT,
-    ATTR_RECONNECT_COUNT,
-    CONF_ACCESS_TOKEN,
-    CONF_ENABLE_LOGGING,
-    CONF_SCAN_INTERVAL,
-    CONF_XIAOZHI_ENDPOINT,
-    DOMAIN,
-    INITIAL_BACKOFF,
-    MAX_BACKOFF,
-    MAX_RECONNECT_ATTEMPTS,
-)
+from .const import (ATTR_CONNECTED, ATTR_ERROR_COUNT, ATTR_LAST_SEEN,
+                    ATTR_MESSAGE_COUNT, ATTR_RECONNECT_COUNT,
+                    CONF_ACCESS_TOKEN, CONF_ENABLE_LOGGING, CONF_SCAN_INTERVAL,
+                    CONF_XIAOZHI_ENDPOINT, DOMAIN, INITIAL_BACKOFF,
+                    MAX_BACKOFF, MAX_RECONNECT_ATTEMPTS)
 from .mcp_client import XiaozhiMCPClient
 
 _LOGGER = logging.getLogger(__name__)
