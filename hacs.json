@@ -4,7 +4,5 @@
     "zip_release": true,
     "filename": "xiaozhi_mcp.zip",
     "homeassistant": "2024.1.0",
-    "render_readme": true,
-    "iot_class": "cloud_push",
-    "integration_type": "hub"
+    "render_readme": true
 }
