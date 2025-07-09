@@ -1,7 +1,7 @@
 {
     "domain": "xiaozhi_mcp",
     "name": "Xiaozhi MCP",
-    "version": "1.0.0",
+    "version": "0.0.1",
     "documentation": "https://github.com/mac8005/xiaozhi-mcp-hacs",
     "issue_tracker": "https://github.com/mac8005/xiaozhi-mcp-hacs/issues",
     "dependencies": [],

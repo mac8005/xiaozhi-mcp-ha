@@ -16,15 +16,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate tag format
+        run: |
+          if [[ ! "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
+            echo "Error: Tag must be in format v#.#.# (e.g., v1.0.0)"
+            exit 1
+          fi
+          echo "Tag format is valid: $GITHUB_REF"
+
       - name: Get version from tag
         id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "Current ref: $GITHUB_REF"
+          echo "Tag name: ${GITHUB_REF#refs/tags/}"
+
+      - name: Update manifest version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" custom_components/xiaozhi_mcp/manifest.json
+          echo "Updated manifest version to: $VERSION"
+          cat custom_components/xiaozhi_mcp/manifest.json
 
       - name: Create ZIP file for HACS
         run: |
+          echo "Creating ZIP file..."
           cd custom_components
           zip -r ../xiaozhi_mcp.zip xiaozhi_mcp/
           cd ..
+          echo "ZIP file created:"
+          ls -la xiaozhi_mcp.zip
 
       - name: Generate changelog
         id: changelog
@@ -40,10 +62,10 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ steps.get_version.outputs.TAG_NAME }}
+          name: Release ${{ steps.get_version.outputs.TAG_NAME }}
           body: |
-            ## 🚀 Release ${{ github.ref_name }}
+            ## 🚀 Release ${{ steps.get_version.outputs.TAG_NAME }}
 
             ### 📦 Installation
             This release can be installed via:
@@ -68,7 +90,7 @@ jobs:
             - [Configuration Help](https://github.com/mac8005/xiaozhi-mcp-hacs#configuration)
             - [Troubleshooting](https://github.com/mac8005/xiaozhi-mcp-hacs#troubleshooting)
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+          prerelease: ${{ contains(steps.get_version.outputs.TAG_NAME, '-') || contains(steps.get_version.outputs.TAG_NAME, 'beta') || contains(steps.get_version.outputs.TAG_NAME, 'alpha') }}
           files: |
             xiaozhi_mcp.zip
           generate_release_notes: true
