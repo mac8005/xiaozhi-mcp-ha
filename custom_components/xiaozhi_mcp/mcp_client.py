@@ -66,6 +66,42 @@ class XiaozhiMCPClient:
 
                     # If no valid data found, return empty response
                     return {"jsonrpc": "2.0", "result": {}, "id": message.get("id")}
+                elif response.status == 405:
+                    # Method not allowed, try GET with query parameters
+                    _LOGGER.debug("POST not allowed, trying GET method")
+                    params = {"message": json.dumps(message)}
+                    async with self.session.get(
+                        self.mcp_server_url,
+                        params=params,
+                        headers={k: v for k, v in headers.items() if k != "Content-Type"},
+                        timeout=aiohttp.ClientTimeout(total=30),
+                    ) as get_response:
+                        if get_response.status == 200:
+                            response_text = await get_response.text()
+                            # Parse SSE data (format: "data: {json}")
+                            for line in response_text.split("\n"):
+                                if line.startswith("data: "):
+                                    data_str = line[6:]  # Remove "data: " prefix
+                                    if data_str.strip():
+                                        try:
+                                            result = json.loads(data_str)
+                                            _LOGGER.debug("MCP Server response: %s", result)
+                                            return result
+                                        except json.JSONDecodeError:
+                                            _LOGGER.warning(
+                                                "Failed to parse SSE data: %s", data_str
+                                            )
+                            return {"jsonrpc": "2.0", "result": {}, "id": message.get("id")}
+                        else:
+                            _LOGGER.error("MCP Server GET returned status %s", get_response.status)
+                            return {
+                                "jsonrpc": "2.0",
+                                "error": {
+                                    "code": -32603,
+                                    "message": f"MCP Server error: {get_response.status}",
+                                },
+                                "id": message.get("id"),
+                            }
                 else:
                     _LOGGER.error("MCP Server returned status %s", response.status)
                     return {

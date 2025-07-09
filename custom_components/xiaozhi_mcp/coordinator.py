@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import random
+import ssl
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -157,9 +158,17 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         _LOGGER.info("Connecting to Xiaozhi MCP endpoint: %s", self.xiaozhi_endpoint)
 
         try:
+            # Create SSL context properly to avoid blocking calls
+            connect_kwargs = {"timeout": 30}
+            if self.xiaozhi_endpoint.startswith("wss://"):
+                ssl_context = ssl.create_default_context()
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+                connect_kwargs["ssl"] = ssl_context
+
             self._websocket = await websockets.connect(
                 self.xiaozhi_endpoint,
-                timeout=30,
+                **connect_kwargs,
             )
 
             self._connected = True

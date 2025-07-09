@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import ssl
 from typing import Any
 
 import aiohttp
@@ -56,7 +57,16 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     try:
         import websockets
 
-        async with websockets.connect(xiaozhi_endpoint, timeout=10) as websocket:
+        # Create SSL context properly to avoid blocking calls
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
+        connect_kwargs = {"timeout": 10}
+        if xiaozhi_endpoint.startswith("wss://"):
+            connect_kwargs["ssl"] = ssl_context
+
+        async with websockets.connect(xiaozhi_endpoint, **connect_kwargs) as websocket:
             # Send a simple ping to test connection
             await websocket.send('{"jsonrpc": "2.0", "method": "ping", "id": 1}')
             response = await asyncio.wait_for(websocket.recv(), timeout=5)

@@ -49,7 +49,7 @@ jobs:
           ls -la xiaozhi_mcp.zip
           echo "ZIP file contents:"
           unzip -l xiaozhi_mcp.zip
-          
+
       - name: Validate ZIP structure
         run: |
           echo "Validating ZIP structure for HACS compatibility..."
@@ -59,14 +59,14 @@ jobs:
             echo "❌ manifest.json not found in ZIP root"
             exit 1
           fi
-          
+
           if unzip -l xiaozhi_mcp.zip | grep -q "__init__.py"; then
             echo "✅ __init__.py found in ZIP root"
           else
             echo "❌ __init__.py not found in ZIP root"
             exit 1
           fi
-          
+
           echo "✅ ZIP structure is valid for HACS"
 
       - name: Generate changelog

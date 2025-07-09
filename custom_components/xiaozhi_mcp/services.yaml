@@ -1,0 +1,19 @@
+reconnect:
+  name: Reconnect
+  description: Reconnect to Xiaozhi MCP server
+  target:
+    integration: xiaozhi_mcp
+
+send_message:
+  name: Send Message
+  description: Send a message to Xiaozhi MCP
+  target:
+    integration: xiaozhi_mcp
+  fields:
+    message:
+      name: Message
+      description: Message to send to Xiaozhi MCP
+      required: true
+      selector:
+        text:
+          multiline: true
