@@ -8,7 +8,6 @@ from homeassistant.config_entries import ConfigEntry
 from custom_components.xiaozhi_mcp.config_flow import ConfigFlow
 from custom_components.xiaozhi_mcp.const import DOMAIN, CONF_XIAOZHI_ENDPOINT
 
-@pytest.mark.asyncio
 async def test_config_flow(hass: HomeAssistant):
     """Test the config flow."""
     # Create a config flow instance
@@ -35,7 +34,6 @@ async def test_config_flow(hass: HomeAssistant):
         assert result["type"] == FlowResultType.CREATE_ENTRY
         assert result["title"] == "Test"
 
-@pytest.mark.asyncio
 async def test_config_flow_already_configured(hass: HomeAssistant):
     """Test that we abort if already configured."""
     # Create a mock config entry
@@ -49,7 +47,7 @@ async def test_config_flow_already_configured(hass: HomeAssistant):
         entry_id="test_entry_id",
         unique_id="wss://test.xiaozhi.me/mcp",
     )
-    config_entry.add_to_hass(hass)
+    hass.config_entries.async_add(config_entry)
     
     # Try to configure again
     result = await hass.config_entries.flow.async_init(

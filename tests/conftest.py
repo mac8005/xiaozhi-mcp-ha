@@ -35,3 +35,9 @@ def mock_config_entry():
         source="test",
         entry_id="test_entry_id",
     )
+
+# Auto-use fixtures to mark tests as async
+@pytest.fixture(autouse=True)
+def auto_enable_custom_integrations(enable_custom_integrations):
+    """Enable loading custom integrations."""
+    yield
