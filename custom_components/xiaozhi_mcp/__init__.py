@@ -15,8 +15,10 @@ from homeassistant.helpers import device_registry as dr
 
 from .const import (
     CONF_ACCESS_TOKEN,
+    CONF_MCP_SERVER_URL,
     CONF_SCAN_INTERVAL,
     CONF_XIAOZHI_ENDPOINT,
+    DEFAULT_MCP_SERVER_URL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     SERVICE_RECONNECT,
@@ -83,6 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     xiaozhi_endpoint = entry.data[CONF_XIAOZHI_ENDPOINT]
     access_token = entry.data[CONF_ACCESS_TOKEN]
     scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    mcp_server_url = entry.data.get(CONF_MCP_SERVER_URL, DEFAULT_MCP_SERVER_URL)
 
     _LOGGER.info("Setting up Xiaozhi MCP: %s", name)
 
@@ -97,6 +100,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         xiaozhi_endpoint,
         access_token,
         scan_interval,
+        mcp_server_url,
     )
 
     # Store coordinator

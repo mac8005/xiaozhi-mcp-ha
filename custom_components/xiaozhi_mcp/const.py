@@ -10,11 +10,13 @@ CONF_XIAOZHI_ENDPOINT: Final = "xiaozhi_endpoint"
 CONF_ACCESS_TOKEN: Final = "access_token"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_ENABLE_LOGGING: Final = "enable_logging"
+CONF_MCP_SERVER_URL: Final = "mcp_server_url"
 
 # Default values
 DEFAULT_SCAN_INTERVAL: Final = 30
 DEFAULT_NAME: Final = "Xiaozhi MCP"
 DEFAULT_ENABLE_LOGGING: Final = False
+DEFAULT_MCP_SERVER_URL: Final = "http://localhost:8123/mcp_server/sse"
 
 # Connection settings
 INITIAL_BACKOFF: Final = 1  # Initial wait time in seconds

@@ -18,9 +18,11 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import (
     CONF_ACCESS_TOKEN,
     CONF_ENABLE_LOGGING,
+    CONF_MCP_SERVER_URL,
     CONF_SCAN_INTERVAL,
     CONF_XIAOZHI_ENDPOINT,
     DEFAULT_ENABLE_LOGGING,
+    DEFAULT_MCP_SERVER_URL,
     DEFAULT_NAME,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -34,6 +36,7 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
         vol.Required(CONF_XIAOZHI_ENDPOINT): str,
         vol.Required(CONF_ACCESS_TOKEN): str,
+        vol.Optional(CONF_MCP_SERVER_URL, default=DEFAULT_MCP_SERVER_URL): str,
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
         vol.Optional(CONF_ENABLE_LOGGING, default=DEFAULT_ENABLE_LOGGING): bool,
     }
@@ -44,10 +47,15 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     """Validate the user input allows us to connect."""
     xiaozhi_endpoint = data[CONF_XIAOZHI_ENDPOINT]
     access_token = data[CONF_ACCESS_TOKEN]
+    mcp_server_url = data.get(CONF_MCP_SERVER_URL, DEFAULT_MCP_SERVER_URL)
 
     # Validate Xiaozhi endpoint
     if not xiaozhi_endpoint.startswith(("ws://", "wss://")):
         raise InvalidEndpoint("Xiaozhi endpoint must start with ws:// or wss://")
+
+    # Validate MCP Server URL
+    if not mcp_server_url.startswith(("http://", "https://")):
+        raise InvalidEndpoint("MCP Server URL must start with http:// or https://")
 
     # Validate access token
     if not access_token or len(access_token) < 10:
@@ -79,7 +87,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     try:
         from .mcp_client import XiaozhiMCPClient
 
-        mcp_client = XiaozhiMCPClient(hass, access_token)
+        mcp_client = XiaozhiMCPClient(hass, access_token, mcp_server_url)
         mcp_connected = await mcp_client.test_connection()
 
         if not mcp_connected:

@@ -51,6 +51,7 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         xiaozhi_endpoint: str,
         access_token: str,
         scan_interval: int,
+        mcp_server_url: str,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -64,6 +65,7 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         self.xiaozhi_endpoint = xiaozhi_endpoint
         self.access_token = access_token
         self.scan_interval = scan_interval
+        self.mcp_server_url = mcp_server_url
         self.enable_logging = config_entry.data.get(CONF_ENABLE_LOGGING, False)
 
         # Connection state
@@ -78,7 +80,7 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         self._backoff = INITIAL_BACKOFF
 
         # Setup MCP client
-        self._mcp_client = XiaozhiMCPClient(hass, access_token)
+        self._mcp_client = XiaozhiMCPClient(hass, access_token, mcp_server_url)
 
     async def async_setup(self) -> None:
         """Set up the coordinator."""

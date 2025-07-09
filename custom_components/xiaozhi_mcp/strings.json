@@ -9,6 +9,7 @@
                     "name": "Name",
                     "xiaozhi_endpoint": "Xiaozhi MCP Endpoint",
                     "access_token": "Long-Lived Access Token",
+                    "mcp_server_url": "MCP Server URL",
                     "scan_interval": "Scan Interval (seconds)",
                     "enable_logging": "Enable Debug Logging"
                 },
@@ -16,6 +17,7 @@
                     "name": "Friendly name for this integration instance",
                     "xiaozhi_endpoint": "Your Xiaozhi MCP endpoint URL from xiaozhi.me",
                     "access_token": "Long-lived access token from Home Assistant",
+                    "mcp_server_url": "URL of your Home Assistant MCP Server (default: http://localhost:8123/mcp_server/sse)",
                     "scan_interval": "How often to check connection status (default: 30 seconds)",
                     "enable_logging": "Enable detailed logging for debugging"
                 }

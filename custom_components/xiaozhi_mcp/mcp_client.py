@@ -17,17 +17,18 @@ _LOGGER = logging.getLogger(__name__)
 class XiaozhiMCPClient:
     """MCP Client for connecting to the official Home Assistant MCP Server via SSE."""
 
-    def __init__(self, hass: HomeAssistant, access_token: str) -> None:
+    def __init__(self, hass: HomeAssistant, access_token: str, mcp_server_url: str = None) -> None:
         """Initialize the MCP client."""
         self.hass = hass
         self.access_token = access_token
         self.session = async_get_clientsession(hass)
 
-        # Get the base URL from Home Assistant configuration
-        base_url = str(hass.config.api.base_url).rstrip('/')
-        
-        # MCP Server SSE endpoint (local Home Assistant MCP Server)
-        self.mcp_server_url = f"{base_url}/mcp_server/sse"
+        # Use provided URL or default
+        if mcp_server_url:
+            self.mcp_server_url = mcp_server_url
+        else:
+            # Fallback to localhost if no URL provided
+            self.mcp_server_url = "http://localhost:8123/mcp_server/sse"
         
         _LOGGER.debug("MCP Server URL: %s", self.mcp_server_url)
         self._sse_session = None
