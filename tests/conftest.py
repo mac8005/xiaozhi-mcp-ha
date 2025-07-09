@@ -22,13 +22,13 @@ def mock_config_entry():
     """Create a mock config entry."""
     return ConfigEntry(
         version=1,
+        minor_version=1,
         domain=DOMAIN,
         title="Test Xiaozhi MCP",
         data={
             "name": "Test Xiaozhi MCP",
             "xiaozhi_endpoint": "wss://test.xiaozhi.me/mcp",
             "access_token": "test_token",
-            "ha_url": "http://test.homeassistant.local:8123",
             "scan_interval": 30,
             "enable_logging": False,
         },
