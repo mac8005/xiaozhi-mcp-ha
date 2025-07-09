@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -27,6 +28,29 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH]
 
 
+async def _wait_for_mcp_server(hass: HomeAssistant) -> None:
+    """Wait for MCP Server integration to be available."""
+    max_wait = 30  # Maximum wait time in seconds
+    check_interval = 1  # Check every second
+
+    for _ in range(max_wait):
+        # Check if MCP Server integration is loaded
+        if "mcp_server" in hass.data:
+            _LOGGER.debug("MCP Server integration is available")
+            return
+
+        # Check if MCP Server config entry exists and is loaded
+        for entry in hass.config_entries.async_entries("mcp_server"):
+            if entry.state == "loaded":
+                _LOGGER.debug("MCP Server integration is loaded")
+                return
+
+        _LOGGER.debug("Waiting for MCP Server integration...")
+        await asyncio.sleep(check_interval)
+
+    _LOGGER.warning("MCP Server integration not found after %d seconds", max_wait)
+
+
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the Xiaozhi MCP integration."""
     hass.data.setdefault(DOMAIN, {})
@@ -41,6 +65,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
     _LOGGER.info("Setting up Xiaozhi MCP: %s", name)
+
+    # Wait for MCP Server integration to be fully loaded
+    await _wait_for_mcp_server(hass)
 
     # Create coordinator
     coordinator = XiaozhiMCPCoordinator(

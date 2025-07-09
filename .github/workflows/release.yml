@@ -66,6 +66,13 @@ jobs:
             echo "❌ __init__.py not found in ZIP root"
             exit 1
           fi
+          
+          if unzip -l xiaozhi_mcp.zip | grep -q "services.yaml"; then
+            echo "✅ services.yaml found in ZIP root"
+          else
+            echo "❌ services.yaml not found in ZIP root"
+            exit 1
+          fi
 
           echo "✅ ZIP structure is valid for HACS"
 

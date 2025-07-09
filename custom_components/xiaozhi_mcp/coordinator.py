@@ -84,13 +84,50 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         """Set up the coordinator."""
         _LOGGER.info("Setting up Xiaozhi MCP coordinator")
 
-        # Test MCP Server connection first
-        mcp_connected = await self._mcp_client.test_connection()
-        if not mcp_connected:
-            _LOGGER.error(
-                "Cannot connect to Home Assistant MCP Server. Please ensure the MCP Server integration is installed and running."
-            )
-            raise ConfigEntryNotReady("MCP Server integration not available")
+        # Test MCP Server connection with retry logic
+        max_retries = 5
+        retry_delay = 2
+        
+        for attempt in range(max_retries):
+            try:
+                _LOGGER.debug("Testing MCP Server connection (attempt %d/%d)", attempt + 1, max_retries)
+                
+                # Check if MCP Server integration is loaded
+                if "mcp_server" not in self.hass.data:
+                    _LOGGER.debug("MCP Server integration not yet loaded, waiting...")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                        continue
+                    else:
+                        raise ConfigEntryNotReady("MCP Server integration not loaded")
+                
+                # Test connection to MCP Server
+                mcp_connected = await self._mcp_client.test_connection()
+                if mcp_connected:
+                    _LOGGER.info("Successfully connected to MCP Server")
+                    break
+                else:
+                    _LOGGER.debug("MCP Server connection failed, retrying...")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                        continue
+                    else:
+                        raise ConfigEntryNotReady("Cannot connect to MCP Server")
+                        
+            except Exception as err:
+                _LOGGER.debug("MCP Server connection attempt %d failed: %s", attempt + 1, err)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2
+                    continue
+                else:
+                    _LOGGER.error(
+                        "Cannot connect to Home Assistant MCP Server after %d attempts. Please ensure the MCP Server integration is installed and running.",
+                        max_retries
+                    )
+                    raise ConfigEntryNotReady("MCP Server integration not available")
 
         # Start initial connection
         await self.async_reconnect()

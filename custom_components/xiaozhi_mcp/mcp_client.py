@@ -129,22 +129,41 @@ class XiaozhiMCPClient:
                 "Accept": "text/event-stream",
             }
 
+            _LOGGER.debug("Testing MCP Server connection to %s", self.mcp_server_url)
+
             # Test with a simple GET request to the SSE endpoint
             async with self.session.get(
                 self.mcp_server_url,
                 headers=headers,
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
+                _LOGGER.debug("MCP Server response status: %s", response.status)
+                _LOGGER.debug("MCP Server response headers: %s", dict(response.headers))
+                
                 # A successful connection should return 200 and SSE content type
                 if response.status == 200:
                     content_type = response.headers.get("content-type", "")
-                    return "text/event-stream" in content_type
+                    is_sse = "text/event-stream" in content_type or "text/plain" in content_type
+                    _LOGGER.debug("MCP Server content type: %s, is SSE: %s", content_type, is_sse)
+                    return is_sse
+                elif response.status == 401:
+                    _LOGGER.error("MCP Server authentication failed - check access token")
+                    return False
+                elif response.status == 404:
+                    _LOGGER.error("MCP Server endpoint not found - check if MCP Server integration is installed")
+                    return False
                 else:
                     _LOGGER.error(
                         "MCP Server test failed with status %s", response.status
                     )
                     return False
 
+        except aiohttp.ClientConnectorError as exc:
+            _LOGGER.error("Cannot connect to MCP Server: %s", exc)
+            return False
+        except asyncio.TimeoutError:
+            _LOGGER.error("MCP Server connection timed out")
+            return False
         except Exception as exc:
             _LOGGER.error("MCP Server connection test failed: %s", exc)
             return False
