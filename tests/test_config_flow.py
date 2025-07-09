@@ -1,11 +1,13 @@
 """Test the config flow."""
 
 import pytest
+from unittest.mock import patch
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from custom_components.xiaozhi_mcp.config_flow import ConfigFlow
 from custom_components.xiaozhi_mcp.const import DOMAIN
 
+@pytest.mark.asyncio
 async def test_config_flow(hass: HomeAssistant):
     """Test the config flow."""
     flow = ConfigFlow()
