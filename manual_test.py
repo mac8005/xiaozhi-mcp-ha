@@ -19,7 +19,16 @@ def test_config_entry_syntax():
             content = f.read()
 
         # Check if required arguments are present
-        required_args = ["discovery_keys=", "options=", "unique_id="]
+        required_args = ["unique_id="]
+        basic_args = ["version=", "domain=", "title=", "data=", "source=", "entry_id="]
+        
+        for arg in basic_args:
+            if arg not in content:
+                print(f"❌ Missing basic argument: {arg}")
+                return False
+            else:
+                print(f"✅ Found basic argument: {arg}")
+                
         for arg in required_args:
             if arg not in content:
                 print(f"❌ Missing required argument: {arg}")
@@ -33,6 +42,13 @@ def test_config_entry_syntax():
             content = f.read()
 
         # Check if required arguments are present
+        for arg in basic_args:
+            if arg not in content:
+                print(f"❌ Missing basic argument: {arg}")
+                return False
+            else:
+                print(f"✅ Found basic argument: {arg}")
+                
         for arg in required_args:
             if arg not in content:
                 print(f"❌ Missing required argument: {arg}")

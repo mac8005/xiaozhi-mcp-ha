@@ -38,7 +38,5 @@ def mock_config_entry():
         },
         source="test",
         entry_id="test_entry_id",
-        discovery_keys=set(),
-        options={},
         unique_id="test_unique_id",
     )
