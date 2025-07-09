@@ -1,0 +1,70 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Xiaozhi MCP Configuration",
+                "description": "Configure your Xiaozhi MCP integration",
+                "data": {
+                    "name": "Name",
+                    "xiaozhi_endpoint": "Xiaozhi MCP Endpoint",
+                    "access_token": "Long-Lived Access Token",
+                    "scan_interval": "Scan Interval (seconds)",
+                    "enable_logging": "Enable Debug Logging"
+                },
+                "data_description": {
+                    "name": "Friendly name for this integration instance",
+                    "xiaozhi_endpoint": "Your Xiaozhi MCP endpoint URL from xiaozhi.me",
+                    "access_token": "Long-lived access token from Home Assistant",
+                    "scan_interval": "How often to check connection status (default: 30 seconds)",
+                    "enable_logging": "Enable detailed logging for debugging"
+                }
+            }
+        },
+        "error": {
+            "connection_failed": "Failed to connect to Xiaozhi MCP endpoint",
+            "authentication_failed": "Authentication failed - check your access token",
+            "invalid_endpoint": "Invalid Xiaozhi MCP endpoint URL",
+            "timeout": "Connection timeout",
+            "unknown_error": "Unknown error occurred"
+        },
+        "abort": {
+            "already_configured": "This Xiaozhi MCP endpoint is already configured",
+            "reauth_successful": "Re-authentication successful"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Xiaozhi MCP Options",
+                "description": "Configure advanced options for Xiaozhi MCP",
+                "data": {
+                    "scan_interval": "Scan Interval (seconds)",
+                    "enable_logging": "Enable Debug Logging"
+                }
+            }
+        }
+    },
+    "device_automation": {
+        "trigger_type": {
+            "connected": "Connected to Xiaozhi",
+            "disconnected": "Disconnected from Xiaozhi",
+            "message_received": "Message received from Xiaozhi"
+        }
+    },
+    "services": {
+        "reconnect": {
+            "name": "Reconnect",
+            "description": "Reconnect to Xiaozhi MCP endpoint"
+        },
+        "send_message": {
+            "name": "Send Message",
+            "description": "Send a message to Xiaozhi",
+            "fields": {
+                "message": {
+                    "name": "Message",
+                    "description": "Message to send to Xiaozhi"
+                }
+            }
+        }
+    }
+}

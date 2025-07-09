@@ -1,0 +1,32 @@
+name: Update HACS
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 2 * * 1" # Weekly on Monday at 2 AM
+
+jobs:
+  update-hacs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Validate HACS
+        uses: hacs/action@main
+        with:
+          category: integration
+
+      - name: Update version in hacs.json
+        run: |
+          VERSION=$(cat custom_components/xiaozhi_mcp/manifest.json | grep -o '"version": "[^"]*"' | grep -o '[0-9].*[0-9]')
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" hacs.json
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add hacs.json
+          git diff --staged --quiet || git commit -m "Update HACS version to $VERSION"
+          git push

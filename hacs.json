@@ -1,0 +1,15 @@
+{
+    "domain": "xiaozhi_mcp",
+    "name": "Xiaozhi MCP",
+    "documentation": "https://github.com/mac8005/xiaozhi-mcp-hacs",
+    "issue_tracker": "https://github.com/mac8005/xiaozhi-mcp-hacs/issues",
+    "dependencies": [],
+    "codeowners": [],
+    "requirements": [],
+    "iot_class": "cloud_push",
+    "integration_type": "hub",
+    "version": "1.0.0",
+    "config_flow": true,
+    "after_dependencies": [],
+    "homeassistant": "2024.1.0"
+}
