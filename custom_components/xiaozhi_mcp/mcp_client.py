@@ -27,7 +27,7 @@ class XiaozhiMCPClient:
         base_url = str(hass.config.api.base_url).rstrip('/')
         
         # MCP Server SSE endpoint (local Home Assistant MCP Server)
-        self.mcp_server_url = f"{base_url}/api/mcp_server/sse"
+        self.mcp_server_url = f"{base_url}/mcp_server/sse"
         
         _LOGGER.debug("MCP Server URL: %s", self.mcp_server_url)
         self._sse_session = None

@@ -53,7 +53,7 @@ async def _wait_for_mcp_server(hass: HomeAssistant) -> None:
             from homeassistant.helpers.aiohttp_client import async_get_clientsession
             session = async_get_clientsession(hass)
             base_url = str(hass.config.api.base_url).rstrip('/')
-            mcp_url = f"{base_url}/api/mcp_server/sse"
+            mcp_url = f"{base_url}/mcp_server/sse"
             
             async with session.get(mcp_url, timeout=aiohttp.ClientTimeout(total=2)) as response:
                 # 401 means the server is running but needs auth - that's good!
