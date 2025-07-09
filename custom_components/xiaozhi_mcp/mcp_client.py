@@ -23,8 +23,13 @@ class XiaozhiMCPClient:
         self.access_token = access_token
         self.session = async_get_clientsession(hass)
 
+        # Get the base URL from Home Assistant configuration
+        base_url = str(hass.config.api.base_url).rstrip('/')
+        
         # MCP Server SSE endpoint (local Home Assistant MCP Server)
-        self.mcp_server_url = "http://localhost:8123/mcp_server/sse"
+        self.mcp_server_url = f"{base_url}/api/mcp_server/sse"
+        
+        _LOGGER.debug("MCP Server URL: %s", self.mcp_server_url)
         self._sse_session = None
 
     async def forward_message(self, message: dict[str, Any]) -> dict[str, Any] | None:
@@ -147,10 +152,16 @@ class XiaozhiMCPClient:
                     _LOGGER.debug("MCP Server content type: %s, is SSE: %s", content_type, is_sse)
                     return is_sse
                 elif response.status == 401:
-                    _LOGGER.error("MCP Server authentication failed - check access token")
+                    _LOGGER.error("MCP Server authentication failed - check access token. Token length: %d", len(self.access_token))
+                    # For debugging, let's try without auth to see if the endpoint exists
+                    async with self.session.get(
+                        self.mcp_server_url,
+                        timeout=aiohttp.ClientTimeout(total=5),
+                    ) as no_auth_response:
+                        _LOGGER.debug("MCP Server without auth status: %s", no_auth_response.status)
                     return False
                 elif response.status == 404:
-                    _LOGGER.error("MCP Server endpoint not found - check if MCP Server integration is installed")
+                    _LOGGER.error("MCP Server endpoint not found at %s - check if MCP Server integration is installed", self.mcp_server_url)
                     return False
                 else:
                     _LOGGER.error(
@@ -159,7 +170,7 @@ class XiaozhiMCPClient:
                     return False
 
         except aiohttp.ClientConnectorError as exc:
-            _LOGGER.error("Cannot connect to MCP Server: %s", exc)
+            _LOGGER.error("Cannot connect to MCP Server at %s: %s", self.mcp_server_url, exc)
             return False
         except asyncio.TimeoutError:
             _LOGGER.error("MCP Server connection timed out")

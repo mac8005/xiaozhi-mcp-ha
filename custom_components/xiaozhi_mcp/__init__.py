@@ -6,6 +6,7 @@ import asyncio
 import logging
 from typing import Any
 
+import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME, Platform
 from homeassistant.core import HomeAssistant
@@ -32,22 +33,41 @@ async def _wait_for_mcp_server(hass: HomeAssistant) -> None:
     """Wait for MCP Server integration to be available."""
     max_wait = 30  # Maximum wait time in seconds
     check_interval = 1  # Check every second
-
-    for _ in range(max_wait):
+    
+    for attempt in range(max_wait):
         # Check if MCP Server integration is loaded
         if "mcp_server" in hass.data:
-            _LOGGER.debug("MCP Server integration is available")
+            _LOGGER.debug("MCP Server integration is available in hass.data")
             return
-
+        
         # Check if MCP Server config entry exists and is loaded
-        for entry in hass.config_entries.async_entries("mcp_server"):
-            if entry.state == "loaded":
-                _LOGGER.debug("MCP Server integration is loaded")
-                return
-
-        _LOGGER.debug("Waiting for MCP Server integration...")
+        mcp_entries = hass.config_entries.async_entries("mcp_server")
+        if mcp_entries:
+            for entry in mcp_entries:
+                if entry.state.value == "loaded":
+                    _LOGGER.debug("MCP Server integration is loaded via config entry")
+                    return
+        
+        # Alternative check: try to access the MCP server endpoint directly
+        try:
+            from homeassistant.helpers.aiohttp_client import async_get_clientsession
+            session = async_get_clientsession(hass)
+            base_url = str(hass.config.api.base_url).rstrip('/')
+            mcp_url = f"{base_url}/api/mcp_server/sse"
+            
+            async with session.get(mcp_url, timeout=aiohttp.ClientTimeout(total=2)) as response:
+                # 401 means the server is running but needs auth - that's good!
+                # 404 means the endpoint doesn't exist - MCP server not available
+                if response.status in (200, 401):
+                    _LOGGER.debug("MCP Server endpoint is responding (status: %s)", response.status)
+                    return
+        except Exception as e:
+            _LOGGER.debug("MCP Server endpoint check failed: %s", e)
+        
+        if attempt < max_wait - 1:  # Don't log on the last attempt
+            _LOGGER.debug("Waiting for MCP Server integration... (attempt %d/%d)", attempt + 1, max_wait)
         await asyncio.sleep(check_interval)
-
+    
     _LOGGER.warning("MCP Server integration not found after %d seconds", max_wait)
 
 
