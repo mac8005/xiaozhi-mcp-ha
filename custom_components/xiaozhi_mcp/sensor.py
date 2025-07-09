@@ -5,16 +5,21 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from homeassistant.components.sensor import (SensorEntity,
-                                             SensorEntityDescription)
+from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (ATTR_CONNECTED, ATTR_ERROR_COUNT, ATTR_LAST_SEEN,
-                    ATTR_MESSAGE_COUNT, ATTR_RECONNECT_COUNT, DOMAIN)
+from .const import (
+    ATTR_CONNECTED,
+    ATTR_ERROR_COUNT,
+    ATTR_LAST_SEEN,
+    ATTR_MESSAGE_COUNT,
+    ATTR_RECONNECT_COUNT,
+    DOMAIN,
+)
 from .coordinator import XiaozhiMCPCoordinator
 
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (

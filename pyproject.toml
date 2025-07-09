@@ -1,0 +1,6 @@
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["custom_components"]
+skip_glob = ["*/__pycache__/*"]
