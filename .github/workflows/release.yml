@@ -42,11 +42,32 @@ jobs:
       - name: Create ZIP file for HACS
         run: |
           echo "Creating ZIP file..."
-          cd custom_components
-          zip -r ../xiaozhi_mcp.zip xiaozhi_mcp/
-          cd ..
+          cd custom_components/xiaozhi_mcp
+          zip -r ../../xiaozhi_mcp.zip . -x "__pycache__/*" "*.pyc"
+          cd ../..
           echo "ZIP file created:"
           ls -la xiaozhi_mcp.zip
+          echo "ZIP file contents:"
+          unzip -l xiaozhi_mcp.zip
+          
+      - name: Validate ZIP structure
+        run: |
+          echo "Validating ZIP structure for HACS compatibility..."
+          if unzip -l xiaozhi_mcp.zip | grep -q "manifest.json"; then
+            echo "✅ manifest.json found in ZIP root"
+          else
+            echo "❌ manifest.json not found in ZIP root"
+            exit 1
+          fi
+          
+          if unzip -l xiaozhi_mcp.zip | grep -q "__init__.py"; then
+            echo "✅ __init__.py found in ZIP root"
+          else
+            echo "❌ __init__.py not found in ZIP root"
+            exit 1
+          fi
+          
+          echo "✅ ZIP structure is valid for HACS"
 
       - name: Generate changelog
         id: changelog
