@@ -89,23 +89,59 @@ class XiaozhiMCPClient:
             self._sse_response = None
 
     async def send_to_mcp(self, message: str) -> None:
-        """Send message to MCP Server using the correct per-message endpoint."""
+        """
+        Send message to MCP Server using the correct per-message endpoint.
+        
+        This method implements robust endpoint handling to prevent 4004 errors:
+        
+        1. Parses message JSON to extract message ID
+        2. Maps message ID to correct endpoint (if available)
+        3. Falls back to latest endpoint or generic endpoint
+        4. Constructs URLs correctly handling both absolute and relative paths
+        5. Validates message format and provides detailed error logging
+        
+        This prevents the common 4004 error caused by incorrect endpoint forwarding.
+        """
         if not self._sse_response:
             raise Exception("Not connected to MCP Server")
 
         session = await self._ensure_session()
 
-        # Use the latest valid endpoint
-        endpoint = self._latest_endpoint
-        if not endpoint:
-            _LOGGER.error("No valid MCP message endpoint available. Cannot send message.")
-            return
-
-        # Build full URL - replace /sse with the endpoint path
-        # The endpoint already includes the full path from root
-        base_url = self.mcp_server_url.replace("/mcp_server/sse", "")
-        url = base_url + endpoint
-        
+        # Parse the message to extract potential ID for endpoint mapping
+        try:
+            msg_data = json.loads(message)
+            msg_id = msg_data.get('id')
+            
+            # Try to find the correct endpoint for this message
+            endpoint = None
+            if msg_id and msg_id in self._message_endpoints:
+                endpoint = self._message_endpoints[msg_id]
+            elif self._latest_endpoint:
+                endpoint = self._latest_endpoint
+            
+            if not endpoint:
+                _LOGGER.warning("No valid MCP message endpoint available. Attempting to use default endpoint.")
+                # Fallback to a generic message endpoint
+                endpoint = "/mcp_server/messages"
+            
+            # Build full URL correctly
+            # If endpoint is absolute (starts with /), use it as-is
+            # If it's relative, append to base URL
+            if endpoint.startswith('/'):
+                # Absolute path - build URL from base
+                base_url = self.mcp_server_url.split('/mcp_server/sse')[0]  # Get protocol://host:port
+                url = base_url + endpoint
+            else:
+                # Relative path - should not happen, but handle it
+                base_url = self.mcp_server_url.replace("/sse", "")
+                url = base_url + "/" + endpoint.lstrip('/')
+            
+        except (json.JSONDecodeError, KeyError) as err:
+            _LOGGER.warning("Failed to parse message JSON, using fallback endpoint: %s", err)
+            # Use a generic endpoint for non-JSON messages
+            base_url = self.mcp_server_url.split('/mcp_server/sse')[0]
+            url = base_url + "/mcp_server/messages"
+            
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
@@ -113,14 +149,18 @@ class XiaozhiMCPClient:
         
         try:
             _LOGGER.debug(f"→ Sending to MCP endpoint: {url}")
+            _LOGGER.debug(f"→ Message preview: {message[:100]}...")
+            
             async with session.post(url, headers=headers, data=message) as resp:
                 if resp.status != 200:
                     response_text = await resp.text()
-                    _LOGGER.error(f"Failed to send message to MCP endpoint {endpoint}: {resp.status} - {response_text}")
+                    _LOGGER.error(f"Failed to send message to MCP endpoint {url}: {resp.status} - {response_text}")
+                    _LOGGER.error(f"Failed message was: {message}")
                 else:
-                    _LOGGER.debug(f"✅ Successfully sent message to MCP endpoint {endpoint}")
+                    _LOGGER.debug(f"✅ Successfully sent message to MCP endpoint {url}")
         except Exception as err:
-            _LOGGER.error(f"Exception sending message to MCP endpoint {endpoint}: {err}")
+            _LOGGER.error(f"Exception sending message to MCP endpoint {url}: {err}")
+            _LOGGER.error(f"Failed message was: {message}")
 
     async def receive_from_mcp(self):
         """Async generator to receive messages from MCP Server (yields actual message content)."""
@@ -140,7 +180,7 @@ class XiaozhiMCPClient:
                     data = line[6:]  # Remove 'data: ' prefix
                     if data and data != '[DONE]':
                         # Check if this is a message endpoint path
-                        if data.startswith('/mcp_server/messages/'):
+                        if data.startswith('/mcp_server/messages/') or data.startswith('/mcp_server/message/'):
                             # This is a message endpoint - store it for sending
                             self._latest_endpoint = data
                             msg_id = data.split('/')[-1]  # Extract ID from path
@@ -148,9 +188,27 @@ class XiaozhiMCPClient:
                             self._message_endpoints[msg_id] = data
                             _LOGGER.debug(f"← Stored MCP endpoint: {data}")
                             # Don't queue endpoint paths as messages
+                        elif data.startswith('/mcp_server/'):
+                            # This might be another type of MCP endpoint
+                            self._latest_endpoint = data
+                            _LOGGER.debug(f"← Stored MCP endpoint (generic): {data}")
                         else:
                             # This is actual message content - queue it
-                            await self._sse_queue.put(data)
+                            try:
+                                # Validate that it's proper JSON before queuing
+                                json.loads(data)
+                                await self._sse_queue.put(data)
+                                _LOGGER.debug(f"← Queued MCP message: {data[:100]}...")
+                            except json.JSONDecodeError:
+                                # Not JSON, might be a different format or endpoint
+                                if data.startswith('/'):
+                                    # Looks like a path - treat as endpoint
+                                    self._latest_endpoint = data
+                                    _LOGGER.debug(f"← Stored MCP endpoint (path): {data}")
+                                else:
+                                    # Unknown format, queue anyway but log warning
+                                    _LOGGER.warning(f"← Unknown SSE data format: {data[:100]}...")
+                                    await self._sse_queue.put(data)
         except asyncio.CancelledError:
             pass
         except Exception as err:

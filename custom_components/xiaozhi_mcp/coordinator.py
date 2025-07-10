@@ -199,7 +199,13 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         try:
             # First, establish MCP connection
             await self._mcp_client.connect_to_mcp()
-            _LOGGER.info("Connected to MCP Server")
+            _LOGGER.info("✅ Connected to MCP Server")
+
+            # Validate Xiaozhi endpoint format
+            if not self.xiaozhi_endpoint.startswith(("ws://", "wss://")):
+                raise ValueError(f"Invalid Xiaozhi endpoint format: {self.xiaozhi_endpoint}. Must start with ws:// or wss://")
+            
+            _LOGGER.info("🔗 Connecting to Xiaozhi WebSocket: %s", self.xiaozhi_endpoint[:50] + "..." if len(self.xiaozhi_endpoint) > 50 else self.xiaozhi_endpoint)
 
             # Create SSL context properly to avoid blocking calls
             connect_kwargs = {}
@@ -209,13 +215,21 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
                 ssl_context.verify_mode = ssl.CERT_NONE
                 connect_kwargs["ssl"] = ssl_context
 
-            self._websocket = await websockets.connect(
-                self.xiaozhi_endpoint,
-                ping_interval=20,
-                ping_timeout=10,
-                close_timeout=10,
-                **connect_kwargs,
-            )
+            try:
+                self._websocket = await websockets.connect(
+                    self.xiaozhi_endpoint,
+                    ping_interval=20,
+                    ping_timeout=10,
+                    close_timeout=10,
+                    **connect_kwargs,
+                )
+                _LOGGER.info("✅ Connected to Xiaozhi WebSocket successfully")
+            except ConnectionRefusedError:
+                raise Exception("Xiaozhi WebSocket connection refused. Check if the endpoint URL is correct and the service is available.")
+            except websockets.InvalidURI:
+                raise Exception(f"Invalid Xiaozhi WebSocket URI: {self.xiaozhi_endpoint}")
+            except Exception as err:
+                raise Exception(f"Failed to connect to Xiaozhi WebSocket: {err}")
 
             self._connected = True
             self._last_seen = datetime.now()
@@ -266,9 +280,37 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
                 if self.enable_logging:
                     _LOGGER.debug("Xiaozhi → MCP: %s", message[:200])
 
-                # Forward message directly to MCP Server
-                await self._mcp_client.send_to_mcp(message)
+                # Validate message format before forwarding
+                try:
+                    # Check if it's valid JSON
+                    json.loads(message)
+                    # Forward message directly to MCP Server
+                    await self._mcp_client.send_to_mcp(message)
+                except json.JSONDecodeError:
+                    _LOGGER.warning("Received non-JSON message from Xiaozhi, forwarding as-is: %s", message[:100])
+                    # Forward anyway, MCP server might handle it
+                    await self._mcp_client.send_to_mcp(message)
+                except Exception as err:
+                    _LOGGER.error("Failed to forward message to MCP: %s", err)
+                    # Don't re-raise here, continue processing other messages
 
+        except ConnectionClosed as err:
+            if err.code == 4004:
+                _LOGGER.error("Xiaozhi WebSocket closed with internal server error (4004).")
+                _LOGGER.error("This might be caused by:")
+                _LOGGER.error("1. Incorrect message format sent to Xiaozhi service")
+                _LOGGER.error("2. Invalid MCP endpoint path forwarding")
+                _LOGGER.error("3. Authentication issues with Xiaozhi service")
+                _LOGGER.error("4. Xiaozhi service internal error")
+                _LOGGER.info("Check: 1) Xiaozhi endpoint URL is correct, 2) Xiaozhi service is online, 3) Your account is valid")
+            else:
+                _LOGGER.warning("Xiaozhi WebSocket connection closed: %s", err)
+            self._error_count += 1
+            raise  # Re-raise to trigger reconnection
+        except WebSocketException as err:
+            _LOGGER.error("Xiaozhi WebSocket error: %s", err)
+            self._error_count += 1
+            raise  # Re-raise to trigger reconnection
         except Exception as err:
             _LOGGER.error("Error in WebSocket to MCP pipe: %s", err)
             self._error_count += 1
@@ -281,9 +323,32 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
                 if self.enable_logging:
                     _LOGGER.debug("MCP → Xiaozhi: %s", message[:200])
 
-                # Forward message back to Xiaozhi
-                await self._websocket.send(message)
+                # Validate message before sending to Xiaozhi
+                try:
+                    # Check if it's valid JSON
+                    json.loads(message)
+                    # Forward message back to Xiaozhi
+                    await self._websocket.send(message)
+                except json.JSONDecodeError:
+                    _LOGGER.warning("Received non-JSON message from MCP, forwarding as-is: %s", message[:100])
+                    # Forward anyway, Xiaozhi might handle it
+                    await self._websocket.send(message)
+                except Exception as err:
+                    _LOGGER.error("Failed to forward MCP response to Xiaozhi: %s", err)
+                    # Don't re-raise here, continue processing other messages
 
+        except ConnectionClosed as err:
+            if err.code == 4004:
+                _LOGGER.error("Xiaozhi WebSocket closed with internal server error (4004) while sending MCP response.")
+                _LOGGER.error("This indicates the Xiaozhi service rejected our response format or content.")
+            else:
+                _LOGGER.warning("Xiaozhi WebSocket connection closed while sending MCP response: %s", err)
+            self._error_count += 1
+            raise  # Re-raise to trigger reconnection
+        except WebSocketException as err:
+            _LOGGER.error("Xiaozhi WebSocket error while sending MCP response: %s", err)
+            self._error_count += 1
+            raise  # Re-raise to trigger reconnection
         except Exception as err:
             _LOGGER.error("Error in MCP to WebSocket pipe: %s", err)
             self._error_count += 1

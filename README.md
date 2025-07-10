@@ -37,6 +37,8 @@ Xiaozhi is an open-source ESP32-based AI chatbot that uses voice interaction and
 
 Before installing this integration, you **must** install the official Home Assistant MCP Server integration:
 
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=mcp_server)
+
 1. Go to `Settings` > `Devices & Services` > `Add Integration`
 2. Search for "Model Context Protocol Server" (or "MCP Server")
 3. Install and configure the MCP Server integration
@@ -44,6 +46,8 @@ Before installing this integration, you **must** install the official Home Assis
 5. Make sure to configure entity exposure in the MCP Server settings
 
 ### HACS Installation (Recommended)
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mac8005&repository=xiaozhi-mcp-hacs&category=integration)
 
 1. Open HACS in Home Assistant
 2. Click on "Integrations"
@@ -78,6 +82,8 @@ Before installing this integration, you **must** install the official Home Assis
 3. Copy your MCP endpoint URL
 
 ### Step 3: Configure Integration
+
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=xiaozhi_mcp)
 
 1. Go to `Settings` > `Devices & Services` > `Add Integration`
 2. Search for "Xiaozhi MCP"
@@ -156,6 +162,7 @@ Once configured, your Xiaozhi device can:
    - Ensure token has proper permissions
    - Check that the MCP Server integration is properly configured
 
+
 4. **Device Not Responding**
    - Check Xiaozhi device is powered on
    - Verify network connectivity
@@ -188,6 +195,16 @@ logger:
 - **Discussions**: [GitHub Discussions](https://github.com/mac8005/xiaozhi-mcp-hacs/discussions)
 - **Xiaozhi Community**: [QQ Group: 575180511](https://qm.qq.com/cgi-bin/qm/qr?k=xyz)
 
+### ☕ Support Development
+
+If this project helps you, consider supporting its development! Your support helps maintain and improve this integration.
+
+<a href="https://www.buymeacoffee.com/mac8005" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" />
+</a>
+
+All donations are appreciated and help keep this project active! 🙏
+
 ## Contributing
 
 Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) for details on how to contribute to this project.
@@ -218,4 +235,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [hacs]: https://github.com/hacs/integration
 [buymecoffee]: https://www.buymeacoffee.com/mac8005
-[buymecoffee-shield]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=for-the-badge
+[buymecoffee-shield]: https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-orange?style=for-the-badge&logo=buy-me-a-coffee&logoColor=white
