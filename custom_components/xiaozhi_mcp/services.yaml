@@ -1,18 +1,17 @@
+# services.yaml – Xiaozhi MCP integration
+# (names/descriptions go in the translations file, so they’re omitted here)
+
 reconnect:
-  name: Reconnect
-  description: Reconnect to Xiaozhi MCP server
   target:
-    integration: xiaozhi_mcp
+    entity:
+      integration: xiaozhi_mcp # filter for entities created by this integration
 
 send_message:
-  name: Send Message
-  description: Send a message to Xiaozhi MCP
   target:
-    integration: xiaozhi_mcp
+    entity:
+      integration: xiaozhi_mcp
   fields:
     message:
-      name: Message
-      description: Message to send to Xiaozhi MCP
       required: true
       selector:
         text:

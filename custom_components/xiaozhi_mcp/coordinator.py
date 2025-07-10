@@ -297,12 +297,6 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         except ConnectionClosed as err:
             if err.code == 4004:
                 _LOGGER.error("Xiaozhi WebSocket closed with internal server error (4004).")
-                _LOGGER.error("This might be caused by:")
-                _LOGGER.error("1. Incorrect message format sent to Xiaozhi service")
-                _LOGGER.error("2. Invalid MCP endpoint path forwarding")
-                _LOGGER.error("3. Authentication issues with Xiaozhi service")
-                _LOGGER.error("4. Xiaozhi service internal error")
-                _LOGGER.info("Check: 1) Xiaozhi endpoint URL is correct, 2) Xiaozhi service is online, 3) Your account is valid")
             else:
                 _LOGGER.warning("Xiaozhi WebSocket connection closed: %s", err)
             self._error_count += 1

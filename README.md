@@ -23,6 +23,14 @@ A Home Assistant Custom Integration (HACS) that connects Xiaozhi ESP32 AI chatbo
 
 Xiaozhi is an open-source ESP32-based AI chatbot that uses voice interaction and MCP protocol to control various smart home devices and services. It supports multiple ESP32 platforms and can integrate with various AI models like Qwen and DeepSeek.
 
+<img src="https://ph-files.imgix.net/80909cc8-6bcb-42b9-96eb-4572b4e8b3cf.png?auto=compress&codec=mozjpeg&cs=strip&auto=format&w=969&h=640&fit=max&frame=1&dpr=1" alt="Xiaozhi ESP32 AI Chatbot" width="600">
+
+- **All-in-one hardware:** ESP32-S3 (16 MB flash / 8 MB PSRAM), digital mic, speaker with class-D amp and 1.28–1.85″ colour LCD.
+- **Local wake word + cloud intelligence:** an offline wake-word engine runs on the device; after activation audio is sent to Xiaozhi’s servers where ASR, LLM reasoning (Qwen, DeepSeek, Doubao …), and TTS are performed.  
+- **Voice-only Home-Assistant control:** this HACS integration connects the device to Home Assistant MCP, letting you toggle lights, scenes and more entirely by voice.  
+- **Many shapes, same guts:** boards are sold as square dev-kits, cubes, pucks and the cute **“Astronaut Ball”** shown above – all share the same firmware stack.  
+- **Ultra-low cost:** the Astronaut Ball costs **≈ USD 19** – cheaper than most bare ESP32 kits. [AliExpress product page](https://www.aliexpress.com/item/1005008600891141.html)
+
 ## Requirements
 
 - Home Assistant 2024.1.0 or later
@@ -139,35 +147,6 @@ Once configured, your Xiaozhi device can:
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **MCP Server Not Found**
-
-   - **Most Common Issue**: The official Home Assistant MCP Server integration is not installed
-   - Install it from `Settings` > `Devices & Services` > `Add Integration` > Search for "MCP Server"
-   - Restart Home Assistant after installation
-   - Check that the MCP Server integration is running and configured
-   - Verify the SSE endpoint is accessible at `http://localhost:8123/mcp_server/sse`
-
-2. **Connection Failed**
-
-   - Check your internet connection
-   - Verify the Xiaozhi MCP endpoint URL
-   - Ensure the access token is valid
-   - Check that both this integration and the MCP Server integration are running
-
-3. **Authentication Error**
-
-   - Regenerate the long-lived access token
-   - Ensure token has proper permissions
-   - Check that the MCP Server integration is properly configured
-
-
-4. **Device Not Responding**
-   - Check Xiaozhi device is powered on
-   - Verify network connectivity
-   - Check xiaozhi.me service status
-   - Ensure your Xiaozhi device is properly configured with the correct MCP endpoint
 
 ### Important Notes
 
@@ -193,7 +172,6 @@ logger:
 
 - **Issues**: [GitHub Issues](https://github.com/mac8005/xiaozhi-mcp-hacs/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/mac8005/xiaozhi-mcp-hacs/discussions)
-- **Xiaozhi Community**: [QQ Group: 575180511](https://qm.qq.com/cgi-bin/qm/qr?k=xyz)
 
 ### ☕ Support Development
 
