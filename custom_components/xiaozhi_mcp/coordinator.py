@@ -147,6 +147,10 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         if self._websocket:
             await self._websocket.close()
 
+        # Clean up MCP connection
+        if self._mcp_client:
+            await self._mcp_client.disconnect_from_mcp()
+
         self._connected = False
 
     async def async_reconnect(self) -> None:
@@ -157,10 +161,11 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         self._reconnect_task = asyncio.create_task(self._reconnect_loop())
 
     async def _reconnect_loop(self) -> None:
-        """Reconnection loop with exponential backoff."""
+        """Reconnection loop with exponential backoff and jitter like the working example."""
         while True:
             try:
                 if self._reconnect_count > 0:
+                    # Add jitter like in the working example
                     wait_time = self._backoff * (1 + random.random() * 0.1)
                     _LOGGER.info(
                         "Waiting %.2f seconds before reconnection attempt %d",
@@ -171,8 +176,9 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
 
                 await self._connect()
 
-                # Reset backoff on successful connection
+                # Reset backoff on successful connection (like working example)
                 self._backoff = INITIAL_BACKOFF
+                self._reconnect_count = 0
                 break
 
             except Exception as err:
@@ -189,16 +195,20 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
                     err,
                 )
 
-                # Exponential backoff
+                # Exponential backoff with max limit
                 self._backoff = min(self._backoff * 2, MAX_BACKOFF)
 
     async def _connect(self) -> None:
-        """Connect to the WebSocket endpoint."""
+        """Connect to the WebSocket endpoint and MCP Server."""
         _LOGGER.info("Connecting to Xiaozhi MCP endpoint: %s", self.xiaozhi_endpoint)
 
         try:
+            # First, establish MCP connection
+            await self._mcp_client.connect_to_mcp()
+            _LOGGER.info("Connected to MCP Server")
+
             # Create SSL context properly to avoid blocking calls
-            connect_kwargs = {"timeout": 30}
+            connect_kwargs = {}
             if self.xiaozhi_endpoint.startswith("wss://"):
                 ssl_context = ssl.create_default_context()
                 ssl_context.check_hostname = False
@@ -207,6 +217,9 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
 
             self._websocket = await websockets.connect(
                 self.xiaozhi_endpoint,
+                ping_interval=20,
+                ping_timeout=10,
+                close_timeout=10,
                 **connect_kwargs,
             )
 
@@ -216,38 +229,27 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
 
             _LOGGER.info("Successfully connected to Xiaozhi MCP endpoint")
 
-            # Start message handling
+            # Start bidirectional message handling
             await self._handle_messages()
 
         except Exception as err:
             self._connected = False
             self._error_count += 1
-            _LOGGER.error("Failed to connect to Xiaozhi MCP endpoint: %s", err)
+            _LOGGER.error("Failed to connect: %s", err)
+            
+            # Clean up MCP connection on failure
+            await self._mcp_client.disconnect_from_mcp()
             raise
 
     async def _handle_messages(self) -> None:
-        """Handle incoming messages from the WebSocket."""
+        """Handle bidirectional communication between Xiaozhi WebSocket and HA MCP Server."""
         try:
-            async for message in self._websocket:
-                self._message_count += 1
-                self._last_seen = datetime.now()
-
-                if self.enable_logging:
-                    _LOGGER.debug("Received message: %s", message[:200])
-
-                try:
-                    data = json.loads(message)
-                    response = await self._mcp_client.forward_message(data)
-
-                    if response:
-                        await self._websocket.send(json.dumps(response))
-
-                except json.JSONDecodeError:
-                    _LOGGER.error("Failed to parse JSON message: %s", message)
-                except Exception as err:
-                    _LOGGER.error("Error handling message: %s", err)
-                    self._error_count += 1
-
+            # Create bidirectional pipe using asyncio.gather like the working example
+            await asyncio.gather(
+                self._pipe_websocket_to_mcp(),
+                self._pipe_mcp_to_websocket(),
+                return_exceptions=True
+            )
         except ConnectionClosed:
             _LOGGER.warning("WebSocket connection closed")
             self._connected = False
@@ -259,6 +261,39 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Unexpected error in message handling: %s", err)
             self._connected = False
             self._error_count += 1
+
+    async def _pipe_websocket_to_mcp(self) -> None:
+        """Pipe messages from Xiaozhi WebSocket to HA MCP Server."""
+        try:
+            async for message in self._websocket:
+                self._message_count += 1
+                self._last_seen = datetime.now()
+
+                if self.enable_logging:
+                    _LOGGER.debug("Xiaozhi → MCP: %s", message[:200])
+
+                # Forward message directly to MCP Server
+                await self._mcp_client.send_to_mcp(message)
+
+        except Exception as err:
+            _LOGGER.error("Error in WebSocket to MCP pipe: %s", err)
+            self._error_count += 1
+            raise  # Re-raise to trigger reconnection
+
+    async def _pipe_mcp_to_websocket(self) -> None:
+        """Pipe messages from HA MCP Server to Xiaozhi WebSocket."""
+        try:
+            async for message in self._mcp_client.receive_from_mcp():
+                if self.enable_logging:
+                    _LOGGER.debug("MCP → Xiaozhi: %s", message[:200])
+
+                # Forward message back to Xiaozhi
+                await self._websocket.send(message)
+
+        except Exception as err:
+            _LOGGER.error("Error in MCP to WebSocket pipe: %s", err)
+            self._error_count += 1
+            raise  # Re-raise to trigger reconnection
 
     async def async_send_message(self, message: dict[str, Any]) -> None:
         """Send a message to the Xiaozhi endpoint."""

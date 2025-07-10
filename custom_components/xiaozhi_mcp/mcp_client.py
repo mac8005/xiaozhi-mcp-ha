@@ -31,101 +31,109 @@ class XiaozhiMCPClient:
             self.mcp_server_url = "http://localhost:8123/mcp_server/sse"
         
         _LOGGER.debug("MCP Server URL: %s", self.mcp_server_url)
-        self._sse_session = None
+        self._sse_response = None
+        self._sse_queue = asyncio.Queue()
+        self._mcp_task = None
 
-    async def forward_message(self, message: dict[str, Any]) -> dict[str, Any] | None:
-        """Forward a message from Xiaozhi to the local MCP Server via SSE."""
+        self._message_endpoints = {}  # Maps message/session IDs to endpoints
+        self._latest_endpoint = None  # Last valid endpoint (if only one active)
+        self._latest_message_id = None  # Last message id
+
+    async def connect_to_mcp(self) -> None:
+        """Establish connection to MCP Server for streaming."""
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Accept": "text/event-stream",
+        }
+
+        # Start persistent SSE connection
+        self._sse_response = await self.session.get(
+            self.mcp_server_url,
+            headers=headers,
+            timeout=aiohttp.ClientTimeout(total=None),  # No timeout for SSE
+        )
+
+        if self._sse_response.status != 200:
+            raise Exception(f"MCP Server connection failed: {self._sse_response.status}")
+
+        # Start reading SSE stream
+        self._mcp_task = asyncio.create_task(self._read_sse_stream())
+
+    async def disconnect_from_mcp(self) -> None:
+        """Disconnect from MCP Server."""
+        if self._mcp_task:
+            self._mcp_task.cancel()
+            self._mcp_task = None
+        
+        if self._sse_response:
+            self._sse_response.close()
+            self._sse_response = None
+
+    async def send_to_mcp(self, message: str) -> None:
+        """Send message to MCP Server using the correct per-message endpoint."""
+        if not self._sse_response:
+            raise Exception("Not connected to MCP Server")
+
+        # Use the latest valid endpoint
+        endpoint = self._latest_endpoint
+        if not endpoint:
+            _LOGGER.error("No valid MCP message endpoint available. Cannot send message.")
+            return
+
+        # Build full URL - replace /sse with the endpoint path
+        # The endpoint already includes the full path from root
+        base_url = self.mcp_server_url.replace("/mcp_server/sse", "")
+        url = base_url + endpoint
+        
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        
         try:
-            headers = {
-                "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json",
-                "Accept": "text/event-stream",
-            }
-
-            _LOGGER.debug("Forwarding message to MCP Server: %s", message)
-
-            # For SSE, we need to send the message as JSON in the request body
-            # and listen for the SSE response
-            async with self.session.post(
-                self.mcp_server_url,
-                json=message,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=30),
-            ) as response:
-                if response.status == 200:
-                    # Read the SSE response
-                    response_text = await response.text()
-
-                    # Parse SSE data (format: "data: {json}")
-                    for line in response_text.split("\n"):
-                        if line.startswith("data: "):
-                            data_str = line[6:]  # Remove "data: " prefix
-                            if data_str.strip():
-                                try:
-                                    result = json.loads(data_str)
-                                    _LOGGER.debug("MCP Server response: %s", result)
-                                    return result
-                                except json.JSONDecodeError:
-                                    _LOGGER.warning(
-                                        "Failed to parse SSE data: %s", data_str
-                                    )
-
-                    # If no valid data found, return empty response
-                    return {"jsonrpc": "2.0", "result": {}, "id": message.get("id")}
-                elif response.status == 405:
-                    # Method not allowed, try GET with query parameters
-                    _LOGGER.debug("POST not allowed, trying GET method")
-                    params = {"message": json.dumps(message)}
-                    async with self.session.get(
-                        self.mcp_server_url,
-                        params=params,
-                        headers={k: v for k, v in headers.items() if k != "Content-Type"},
-                        timeout=aiohttp.ClientTimeout(total=30),
-                    ) as get_response:
-                        if get_response.status == 200:
-                            response_text = await get_response.text()
-                            # Parse SSE data (format: "data: {json}")
-                            for line in response_text.split("\n"):
-                                if line.startswith("data: "):
-                                    data_str = line[6:]  # Remove "data: " prefix
-                                    if data_str.strip():
-                                        try:
-                                            result = json.loads(data_str)
-                                            _LOGGER.debug("MCP Server response: %s", result)
-                                            return result
-                                        except json.JSONDecodeError:
-                                            _LOGGER.warning(
-                                                "Failed to parse SSE data: %s", data_str
-                                            )
-                            return {"jsonrpc": "2.0", "result": {}, "id": message.get("id")}
-                        else:
-                            _LOGGER.error("MCP Server GET returned status %s", get_response.status)
-                            return {
-                                "jsonrpc": "2.0",
-                                "error": {
-                                    "code": -32603,
-                                    "message": f"MCP Server error: {get_response.status}",
-                                },
-                                "id": message.get("id"),
-                            }
+            _LOGGER.debug(f"→ Sending to MCP endpoint: {url}")
+            async with self.session.post(url, headers=headers, data=message) as resp:
+                if resp.status != 200:
+                    response_text = await resp.text()
+                    _LOGGER.error(f"Failed to send message to MCP endpoint {endpoint}: {resp.status} - {response_text}")
                 else:
-                    _LOGGER.error("MCP Server returned status %s", response.status)
-                    return {
-                        "jsonrpc": "2.0",
-                        "error": {
-                            "code": -32603,
-                            "message": f"MCP Server error: {response.status}",
-                        },
-                        "id": message.get("id"),
-                    }
+                    _LOGGER.debug(f"✅ Successfully sent message to MCP endpoint {endpoint}")
+        except Exception as err:
+            _LOGGER.error(f"Exception sending message to MCP endpoint {endpoint}: {err}")
 
-        except Exception as exc:
-            _LOGGER.error("Error forwarding message to MCP Server: %s", exc)
-            return {
-                "jsonrpc": "2.0",
-                "error": {"code": -32603, "message": f"Internal error: {exc}"},
-                "id": message.get("id"),
-            }
+    async def receive_from_mcp(self):
+        """Async generator to receive messages from MCP Server (yields actual message content)."""
+        while True:
+            try:
+                message = await self._sse_queue.get()
+                yield message  # This is now actual message content, not endpoint info
+            except asyncio.CancelledError:
+                break
+
+    async def _read_sse_stream(self) -> None:
+        """Read SSE stream and extract message endpoints and payloads."""
+        try:
+            async for line in self._sse_response.content:
+                line = line.decode('utf-8').strip()
+                if line.startswith('data: '):
+                    data = line[6:]  # Remove 'data: ' prefix
+                    if data and data != '[DONE]':
+                        # Check if this is a message endpoint path
+                        if data.startswith('/mcp_server/messages/'):
+                            # This is a message endpoint - store it for sending
+                            self._latest_endpoint = data
+                            msg_id = data.split('/')[-1]  # Extract ID from path
+                            self._latest_message_id = msg_id
+                            self._message_endpoints[msg_id] = data
+                            _LOGGER.debug(f"← Stored MCP endpoint: {data}")
+                            # Don't queue endpoint paths as messages
+                        else:
+                            # This is actual message content - queue it
+                            await self._sse_queue.put(data)
+        except asyncio.CancelledError:
+            pass
+        except Exception as err:
+            _LOGGER.error("Error reading SSE stream: %s", err)
 
     async def test_connection(self) -> bool:
         """Test connection to the MCP Server."""
