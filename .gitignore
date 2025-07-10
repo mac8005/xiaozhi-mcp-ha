@@ -48,6 +48,12 @@ coverage.xml
 
 # Translations
 *.mo
+
+# Environment variables
+.env
+
+# Local development logs
+xiaozhi_mcp_local.log
 *.pot
 
 # Django stuff:
