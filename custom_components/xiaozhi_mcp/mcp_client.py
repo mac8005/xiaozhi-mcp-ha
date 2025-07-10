@@ -21,7 +21,12 @@ class XiaozhiMCPClient:
         """Initialize the MCP client."""
         self.hass = hass
         self.access_token = access_token
-        self.session = async_get_clientsession(hass)
+        
+        try:
+            self.session = async_get_clientsession(hass)
+        except Exception as err:
+            _LOGGER.warning("Failed to get aiohttp session, will create one later: %s", err)
+            self.session = None
 
         # Use provided URL or default
         if mcp_server_url:
@@ -35,19 +40,33 @@ class XiaozhiMCPClient:
         self._sse_queue = asyncio.Queue()
         self._mcp_task = None
 
+        # Endpoint management for MCP protocol compliance
         self._message_endpoints = {}  # Maps message/session IDs to endpoints
-        self._latest_endpoint = None  # Last valid endpoint (if only one active)
+        self._latest_endpoint = None  # Last valid endpoint
         self._latest_message_id = None  # Last message id
+
+    async def _ensure_session(self):
+        """Ensure we have a valid aiohttp session."""
+        if self.session is None:
+            try:
+                self.session = async_get_clientsession(self.hass)
+            except Exception:
+                # Fallback to creating our own session
+                import aiohttp
+                self.session = aiohttp.ClientSession()
+        return self.session
 
     async def connect_to_mcp(self) -> None:
         """Establish connection to MCP Server for streaming."""
+        session = await self._ensure_session()
+        
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Accept": "text/event-stream",
         }
 
         # Start persistent SSE connection
-        self._sse_response = await self.session.get(
+        self._sse_response = await session.get(
             self.mcp_server_url,
             headers=headers,
             timeout=aiohttp.ClientTimeout(total=None),  # No timeout for SSE
@@ -74,6 +93,8 @@ class XiaozhiMCPClient:
         if not self._sse_response:
             raise Exception("Not connected to MCP Server")
 
+        session = await self._ensure_session()
+
         # Use the latest valid endpoint
         endpoint = self._latest_endpoint
         if not endpoint:
@@ -92,7 +113,7 @@ class XiaozhiMCPClient:
         
         try:
             _LOGGER.debug(f"→ Sending to MCP endpoint: {url}")
-            async with self.session.post(url, headers=headers, data=message) as resp:
+            async with session.post(url, headers=headers, data=message) as resp:
                 if resp.status != 200:
                     response_text = await resp.text()
                     _LOGGER.error(f"Failed to send message to MCP endpoint {endpoint}: {resp.status} - {response_text}")
@@ -138,6 +159,8 @@ class XiaozhiMCPClient:
     async def test_connection(self) -> bool:
         """Test connection to the MCP Server."""
         try:
+            session = await self._ensure_session()
+            
             headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Accept": "text/event-stream",
@@ -146,7 +169,7 @@ class XiaozhiMCPClient:
             _LOGGER.debug("Testing MCP Server connection to %s", self.mcp_server_url)
 
             # Test with a simple GET request to the SSE endpoint
-            async with self.session.get(
+            async with session.get(
                 self.mcp_server_url,
                 headers=headers,
                 timeout=aiohttp.ClientTimeout(total=10),
@@ -163,7 +186,7 @@ class XiaozhiMCPClient:
                 elif response.status == 401:
                     _LOGGER.error("MCP Server authentication failed - check access token. Token length: %d", len(self.access_token))
                     # For debugging, let's try without auth to see if the endpoint exists
-                    async with self.session.get(
+                    async with session.get(
                         self.mcp_server_url,
                         timeout=aiohttp.ClientTimeout(total=5),
                     ) as no_auth_response:
