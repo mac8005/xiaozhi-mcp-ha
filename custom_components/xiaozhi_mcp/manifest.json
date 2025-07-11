@@ -17,6 +17,5 @@
     "config_flow": true,
     "iot_class": "cloud_push",
     "integration_type": "hub",
-    "quality_scale": "silver",
-    "homeassistant": "2024.1.0"
+    "quality_scale": "silver"
 }

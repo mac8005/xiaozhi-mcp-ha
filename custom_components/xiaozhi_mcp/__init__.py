@@ -25,6 +25,7 @@ from .const import (
     SERVICE_SEND_MESSAGE,
 )
 from .coordinator import XiaozhiMCPCoordinator
+from .config_schema import CONFIG_SCHEMA
 
 _LOGGER = logging.getLogger(__name__)
 
