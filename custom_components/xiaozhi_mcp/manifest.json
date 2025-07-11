@@ -1,21 +1,21 @@
 {
     "domain": "xiaozhi_mcp",
     "name": "Xiaozhi MCP",
-    "version": "0.0.15",
-    "documentation": "https://github.com/mac8005/xiaozhi-mcp-hacs",
-    "issue_tracker": "https://github.com/mac8005/xiaozhi-mcp-hacs/issues",
-    "dependencies": [
-        "mcp_server"
-    ],
     "codeowners": [
         "@mac8005"
     ],
+    "config_flow": true,
+    "dependencies": [
+        "mcp_server"
+    ],
+    "documentation": "https://github.com/mac8005/xiaozhi-mcp-hacs",
+    "integration_type": "hub",
+    "iot_class": "cloud_push",
+    "issue_tracker": "https://github.com/mac8005/xiaozhi-mcp-hacs/issues",
+    "quality_scale": "silver",
     "requirements": [
         "websockets>=11.0.3",
         "aiohttp>=3.8.0"
     ],
-    "config_flow": true,
-    "iot_class": "cloud_push",
-    "integration_type": "hub",
-    "quality_scale": "silver"
+    "version": "0.0.15"
 }
