@@ -166,3 +166,5 @@ FINAL_COMPLIANCE_STATUS.md
 TEST_FIXES_SUMMARY.md
 *.zip
 test_mcp_connection.sh
+path
+logs/
