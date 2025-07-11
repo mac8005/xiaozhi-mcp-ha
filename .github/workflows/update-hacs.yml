@@ -3,8 +3,6 @@ name: Update HACS
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: "0 2 * * 1" # Weekly on Monday at 2 AM
 
 jobs:
   update-hacs:
@@ -12,6 +10,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: Validate with Hassfest
+        uses: home-assistant/actions/hassfest@master
 
       - name: Validate HACS
         uses: hacs/action@main
