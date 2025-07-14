@@ -26,9 +26,9 @@ Xiaozhi is an open-source ESP32-based AI chatbot that uses voice interaction and
 <img src="https://ph-files.imgix.net/80909cc8-6bcb-42b9-96eb-4572b4e8b3cf.png?auto=compress&codec=mozjpeg&cs=strip&auto=format&w=969&h=640&fit=max&frame=1&dpr=1" alt="Xiaozhi ESP32 AI Chatbot" width="600">
 
 - **All-in-one hardware:** ESP32-S3 (16 MB flash / 8 MB PSRAM), digital mic, speaker with class-D amp and 1.28–1.85″ colour LCD.
-- **Local wake word + cloud intelligence:** an offline wake-word engine runs on the device; after activation audio is sent to Xiaozhi’s servers where ASR, LLM reasoning (Qwen, DeepSeek, Doubao …), and TTS are performed.  
-- **Voice-only Home-Assistant control:** this HACS integration connects the device to Home Assistant MCP, letting you toggle lights, scenes and more entirely by voice.  
-- **Many shapes, same guts:** boards are sold as square dev-kits, cubes, pucks and the cute **“Astronaut Ball”** shown above – all share the same firmware stack.  
+- **Local wake word + cloud intelligence:** an offline wake-word engine runs on the device; after activation audio is sent to Xiaozhi’s servers where ASR, LLM reasoning (Qwen, DeepSeek, Doubao …), and TTS are performed.
+- **Voice-only Home-Assistant control:** this HACS integration connects the device to Home Assistant MCP, letting you toggle lights, scenes and more entirely by voice.
+- **Many shapes, same guts:** boards are sold as square dev-kits, cubes, pucks and the cute **“Astronaut Ball”** shown above – all share the same firmware stack.
 - **Ultra-low cost:** the Astronaut Ball costs **≈ USD 19** – cheaper than most bare ESP32 kits. [AliExpress product page](https://www.aliexpress.com/item/1005008600891141.html)
 
 ## Requirements
@@ -55,13 +55,13 @@ Before installing this integration, you **must** install the official Home Assis
 
 ### HACS Installation (Recommended)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mac8005&repository=xiaozhi-mcp-hacs&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mac8005&repository=xiaozhi-mcp-ha&category=integration)
 
 1. Open HACS in Home Assistant
 2. Click on "Integrations"
 3. Click the three dots in the top right corner
 4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/mac8005/xiaozhi-mcp-hacs`
+5. Add this repository URL: `https://github.com/mac8005/xiaozhi-mcp-ha`
 6. Set category to "Integration"
 7. Click "Add"
 8. Search for "Xiaozhi MCP" and install
@@ -147,7 +147,6 @@ Once configured, your Xiaozhi device can:
 
 ## Troubleshooting
 
-
 ### Important Notes
 
 - **Critical Dependency**: This integration requires the official Home Assistant MCP Server integration to be installed and running
@@ -170,8 +169,8 @@ logger:
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/mac8005/xiaozhi-mcp-hacs/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/mac8005/xiaozhi-mcp-hacs/discussions)
+- **Issues**: [GitHub Issues](https://github.com/mac8005/xiaozhi-mcp-ha/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/mac8005/xiaozhi-mcp-ha/discussions)
 
 ### ☕ Support Development
 
@@ -205,11 +204,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-[releases-shield]: https://img.shields.io/github/release/mac8005/xiaozhi-mcp-hacs.svg?style=for-the-badge
-[releases]: https://github.com/mac8005/xiaozhi-mcp-hacs/releases
-[commits-shield]: https://img.shields.io/github/commit-activity/y/mac8005/xiaozhi-mcp-hacs.svg?style=for-the-badge
-[commits]: https://github.com/mac8005/xiaozhi-mcp-hacs/commits/main
-[license-shield]: https://img.shields.io/github/license/mac8005/xiaozhi-mcp-hacs.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/mac8005/xiaozhi-mcp-ha.svg?style=for-the-badge
+[releases]: https://github.com/mac8005/xiaozhi-mcp-ha/releases
+[commits-shield]: https://img.shields.io/github/commit-activity/y/mac8005/xiaozhi-mcp-ha.svg?style=for-the-badge
+[commits]: https://github.com/mac8005/xiaozhi-mcp-ha/commits/main
+[license-shield]: https://img.shields.io/github/license/mac8005/xiaozhi-mcp-ha.svg?style=for-the-badge
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [hacs]: https://github.com/hacs/integration
 [buymecoffee]: https://www.buymeacoffee.com/mac8005

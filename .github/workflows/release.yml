@@ -117,14 +117,14 @@ jobs:
             ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
 
             ### 🆘 Support
-            - 🐛 [Report Issues](https://github.com/mac8005/xiaozhi-mcp-hacs/issues)
-            - 💬 [Discussions](https://github.com/mac8005/xiaozhi-mcp-hacs/discussions)
-            - 📖 [Documentation](https://github.com/mac8005/xiaozhi-mcp-hacs/blob/main/README.md)
+            - 🐛 [Report Issues](https://github.com/mac8005/xiaozhi-mcp-ha/issues)
+            - 💬 [Discussions](https://github.com/mac8005/xiaozhi-mcp-ha/discussions)
+            - 📖 [Documentation](https://github.com/mac8005/xiaozhi-mcp-ha/blob/main/README.md)
 
             ### 🔗 Quick Links
-            - [Installation Guide](https://github.com/mac8005/xiaozhi-mcp-hacs#installation)
-            - [Configuration Help](https://github.com/mac8005/xiaozhi-mcp-hacs#configuration)
-            - [Troubleshooting](https://github.com/mac8005/xiaozhi-mcp-hacs#troubleshooting)
+            - [Installation Guide](https://github.com/mac8005/xiaozhi-mcp-ha#installation)
+            - [Configuration Help](https://github.com/mac8005/xiaozhi-mcp-ha#configuration)
+            - [Troubleshooting](https://github.com/mac8005/xiaozhi-mcp-ha#troubleshooting)
           draft: false
           prerelease: ${{ contains(steps.get_version.outputs.TAG_NAME, '-') || contains(steps.get_version.outputs.TAG_NAME, 'beta') || contains(steps.get_version.outputs.TAG_NAME, 'alpha') }}
           files: |

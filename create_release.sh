@@ -187,7 +187,7 @@ main() {
     echo
     print_success "🎉 Release v$VERSION created successfully!"
     print_info "GitHub Actions will now build and publish the release"
-    print_info "Check the Actions tab at: https://github.com/mac8005/xiaozhi-mcp-hacs/actions"
+    print_info "Check the Actions tab at: https://github.com/mac8005/xiaozhi-mcp-ha/actions"
     echo
     print_info "📦 HACS users will be able to update to v$VERSION once the release is published"
 }

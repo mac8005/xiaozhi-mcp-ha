@@ -171,7 +171,7 @@ def main():
     print()
     print(f"🎉 Release v{version} created successfully!")
     print("ℹ️  GitHub Actions will now build and publish the release")
-    print("ℹ️  Check the Actions tab at: https://github.com/mac8005/xiaozhi-mcp-hacs/actions")
+    print("ℹ️  Check the Actions tab at: https://github.com/mac8005/xiaozhi-mcp-ha/actions")
     print()
     print(f"📦 HACS users will be able to update to v{version} once the release is published")
 
