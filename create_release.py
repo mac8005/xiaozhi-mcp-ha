@@ -58,11 +58,22 @@ def suggest_next_version():
     current = get_current_version()
     major, minor, patch = map(int, current.split('.'))
     
+    next_patch = f"{major}.{minor}.{patch + 1}"
+    next_minor = f"{major}.{minor + 1}.0"
+    next_major = f"{major + 1}.0.0"
+    
     print(f"Current version: {current}")
     print("Suggested versions:")
-    print(f"  Patch: {major}.{minor}.{patch + 1}")
-    print(f"  Minor: {major}.{minor + 1}.0")
-    print(f"  Major: {major + 1}.0.0")
+    print(f"  1) Patch: {next_patch}")
+    print(f"  2) Minor: {next_minor}")
+    print(f"  3) Major: {next_major}")
+    print(f"  4) Custom version")
+    
+    return {
+        '1': next_patch,
+        '2': next_minor,
+        '3': next_major
+    }
 
 
 def update_manifest(version):
@@ -118,9 +129,18 @@ def main():
         version = sys.argv[1]
     else:
         print()
-        suggest_next_version()
+        suggested_versions = suggest_next_version()
         print()
-        version = input("Enter new version (format: x.y.z): ").strip()
+        choice = input("Select version (1-4) or press Enter for custom: ").strip()
+        
+        if choice in suggested_versions:
+            version = suggested_versions[choice]
+            print(f"ℹ️  Selected version: {version}")
+        elif choice in ['4', '']:
+            version = input("Enter custom version (format: x.y.z): ").strip()
+        else:
+            print("❌ Invalid selection. Please choose 1-4")
+            sys.exit(1)
     
     # Validate version
     validate_version(version)

@@ -91,9 +91,15 @@ suggest_next_version() {
     
     echo "Current version: $current"
     echo "Suggested versions:"
-    echo "  Patch: $major.$minor.$next_patch"
-    echo "  Minor: $major.$next_minor.0"
-    echo "  Major: $next_major.0.0"
+    echo "  1) Patch: $major.$minor.$next_patch"
+    echo "  2) Minor: $major.$next_minor.0"
+    echo "  3) Major: $next_major.0.0"
+    echo "  4) Custom version"
+    
+    # Store suggested versions for later use
+    SUGGESTED_PATCH="$major.$minor.$next_patch"
+    SUGGESTED_MINOR="$major.$next_minor.0"
+    SUGGESTED_MAJOR="$next_major.0.0"
 }
 
 # Main script logic
@@ -127,7 +133,29 @@ main() {
         echo
         suggest_next_version
         echo
-        read -p "Enter new version (format: x.y.z): " VERSION
+        read -p "Select version (1-4) or press Enter for custom: " choice
+        
+        case $choice in
+            1)
+                VERSION="$SUGGESTED_PATCH"
+                print_info "Selected patch version: $VERSION"
+                ;;
+            2)
+                VERSION="$SUGGESTED_MINOR"
+                print_info "Selected minor version: $VERSION"
+                ;;
+            3)
+                VERSION="$SUGGESTED_MAJOR"
+                print_info "Selected major version: $VERSION"
+                ;;
+            4|"")
+                read -p "Enter custom version (format: x.y.z): " VERSION
+                ;;
+            *)
+                print_error "Invalid selection. Please choose 1-4"
+                exit 1
+                ;;
+        esac
     fi
     
     # Validate version format
