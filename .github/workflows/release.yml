@@ -32,6 +32,14 @@ jobs:
           echo "Current ref: $GITHUB_REF"
           echo "Tag name: ${GITHUB_REF#refs/tags/}"
 
+      - name: Validate with Hassfest
+        uses: home-assistant/actions/hassfest@master
+
+      - name: Validate HACS
+        uses: hacs/action@main
+        with:
+          category: integration
+
       - name: Update manifest version
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
