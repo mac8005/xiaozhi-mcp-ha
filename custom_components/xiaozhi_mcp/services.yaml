@@ -16,3 +16,8 @@ send_message:
       selector:
         text:
           multiline: true
+
+check_entity_exposure:
+  target:
+    entity:
+      integration: xiaozhi_mcp

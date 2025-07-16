@@ -48,6 +48,11 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         name="Error Count",
         icon="mdi:alert",
     ),
+    SensorEntityDescription(
+        key="entity_exposure",
+        name="Entity Exposure Status",
+        icon="mdi:home-assistant",
+    ),
 )
 
 
@@ -102,6 +107,13 @@ class XiaozhiMCPSensor(CoordinatorEntity, SensorEntity):
             return self.coordinator.message_count
         elif self.entity_description.key == "error_count":
             return self.coordinator.error_count
+        elif self.entity_description.key == "entity_exposure":
+            if not self.coordinator.entity_exposure_checked:
+                return "Not Checked"
+            elif self.coordinator.has_exposed_entities:
+                return f"Exposed ({len(self.coordinator.exposed_entity_list)} entities)"
+            else:
+                return "No Entities Exposed"
         return None
 
     @property
@@ -123,5 +135,17 @@ class XiaozhiMCPSensor(CoordinatorEntity, SensorEntity):
                 ATTR_RECONNECT_COUNT: self.coordinator.reconnect_count,
                 ATTR_MESSAGE_COUNT: self.coordinator.message_count,
                 ATTR_ERROR_COUNT: self.coordinator.error_count,
+            }
+        elif self.entity_description.key == "entity_exposure":
+            return {
+                "has_exposed_entities": self.coordinator.has_exposed_entities,
+                "exposed_entity_count": len(self.coordinator.exposed_entity_list),
+                "exposed_entities": self.coordinator.exposed_entity_list,
+                "checked": self.coordinator.entity_exposure_checked,
+                "troubleshooting_tip": (
+                    "Entities are properly exposed to MCP server" 
+                    if self.coordinator.has_exposed_entities 
+                    else "Go to Settings → Devices & Services → Model Context Protocol Server to expose entities"
+                ),
             }
         return {}

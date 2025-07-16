@@ -23,6 +23,7 @@ from .const import (
     DOMAIN,
     SERVICE_RECONNECT,
     SERVICE_SEND_MESSAGE,
+    SERVICE_CHECK_ENTITIES,
 )
 from .coordinator import XiaozhiMCPCoordinator
 from .config_schema import CONFIG_SCHEMA
@@ -150,6 +151,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not hass.data[DOMAIN]:
             hass.services.async_remove(DOMAIN, SERVICE_RECONNECT)
             hass.services.async_remove(DOMAIN, SERVICE_SEND_MESSAGE)
+            hass.services.async_remove(DOMAIN, SERVICE_CHECK_ENTITIES)
 
     return unload_ok
 
@@ -175,6 +177,10 @@ async def _async_setup_services(
         if message:
             await coordinator.async_send_message(message)
 
+    async def handle_check_entities(call) -> None:
+        """Handle check entity exposure service call."""
+        await coordinator.async_check_entity_exposure()
+
     # Register services
     hass.services.async_register(
         DOMAIN,
@@ -186,4 +192,10 @@ async def _async_setup_services(
         DOMAIN,
         SERVICE_SEND_MESSAGE,
         handle_send_message,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_CHECK_ENTITIES,
+        handle_check_entities,
     )

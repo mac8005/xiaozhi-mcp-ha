@@ -35,6 +35,7 @@ ERROR_CODES: Final = {
 # Service names
 SERVICE_RECONNECT: Final = "reconnect"
 SERVICE_SEND_MESSAGE: Final = "send_message"
+SERVICE_CHECK_ENTITIES: Final = "check_entity_exposure"
 
 # Attributes
 ATTR_CONNECTED: Final = "connected"

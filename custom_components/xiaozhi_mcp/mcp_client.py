@@ -90,77 +90,81 @@ class XiaozhiMCPClient:
 
     async def send_to_mcp(self, message: str) -> None:
         """
-        Send message to MCP Server using the correct per-message endpoint.
+        Send message to MCP Server with robust error handling and fallback mechanisms.
         
-        This method implements robust endpoint handling to prevent 4004 errors:
-        
-        1. Parses message JSON to extract message ID
-        2. Maps message ID to correct endpoint (if available)
-        3. Falls back to latest endpoint or generic endpoint
-        4. Constructs URLs correctly handling both absolute and relative paths
-        5. Validates message format and provides detailed error logging
-        
-        This prevents the common 4004 error caused by incorrect endpoint forwarding.
+        Implements session management and handles 404 errors when sessions expire.
+        Falls back to different endpoint strategies when sessions are invalid.
         """
         if not self._sse_response:
             raise Exception("Not connected to MCP Server")
 
         session = await self._ensure_session()
-
-        # Parse the message to extract potential ID for endpoint mapping
-        try:
-            msg_data = json.loads(message)
-            msg_id = msg_data.get('id')
-            
-            # Try to find the correct endpoint for this message
-            endpoint = None
-            if msg_id and msg_id in self._message_endpoints:
-                endpoint = self._message_endpoints[msg_id]
-            elif self._latest_endpoint:
-                endpoint = self._latest_endpoint
-            
-            if not endpoint:
-                _LOGGER.warning("No valid MCP message endpoint available. Attempting to use default endpoint.")
-                # Fallback to a generic message endpoint
-                endpoint = "/mcp_server/messages"
-            
-            # Build full URL correctly
-            # If endpoint is absolute (starts with /), use it as-is
-            # If it's relative, append to base URL
-            if endpoint.startswith('/'):
-                # Absolute path - build URL from base
-                base_url = self.mcp_server_url.split('/mcp_server/sse')[0]  # Get protocol://host:port
-                url = base_url + endpoint
-            else:
-                # Relative path - should not happen, but handle it
-                base_url = self.mcp_server_url.replace("/sse", "")
-                url = base_url + "/" + endpoint.lstrip('/')
-            
-        except (json.JSONDecodeError, KeyError) as err:
-            _LOGGER.warning("Failed to parse message JSON, using fallback endpoint: %s", err)
-            # Use a generic endpoint for non-JSON messages
-            base_url = self.mcp_server_url.split('/mcp_server/sse')[0]
-            url = base_url + "/mcp_server/messages"
-            
+        base_url = self.mcp_server_url.split('/mcp_server/sse')[0]  # Get protocol://host:port
+        
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
         
+        # Strategy 1: Try to use the latest session endpoint if available
+        success = False
+        if self._latest_endpoint:
+            url = base_url + self._latest_endpoint
+            success = await self._try_send_message(session, url, headers, message, "latest session endpoint")
+        
+        # Strategy 2: If latest endpoint failed, try generic messages endpoint
+        if not success:
+            url = base_url + "/mcp_server/messages"
+            success = await self._try_send_message(session, url, headers, message, "generic messages endpoint")
+        
+        # Strategy 3: If both failed, try with different path variations
+        if not success:
+            # Try the original SSE endpoint but with POST instead of GET
+            url = self.mcp_server_url
+            success = await self._try_send_message(session, url, headers, message, "SSE endpoint as POST")
+        
+        # Strategy 4: Last resort - try without session-specific paths
+        if not success:
+            url = base_url + "/mcp_server"
+            success = await self._try_send_message(session, url, headers, message, "base MCP endpoint")
+            
+        if not success:
+            _LOGGER.error("All MCP endpoint strategies failed. Message could not be delivered.")
+            _LOGGER.error(f"Failed message was: {message}")
+            # Clear stored endpoints since they seem to be invalid
+            self._latest_endpoint = None
+            self._message_endpoints.clear()
+
+    async def _try_send_message(self, session, url: str, headers: dict, message: str, strategy_name: str) -> bool:
+        """Try to send a message to a specific endpoint and return success status."""
         try:
-            _LOGGER.debug(f"→ Sending to MCP endpoint: {url}")
+            _LOGGER.debug(f"→ Trying {strategy_name}: {url}")
             _LOGGER.debug(f"→ Message preview: {message[:100]}...")
             
-            async with session.post(url, headers=headers, data=message) as resp:
-                if resp.status != 200:
+            async with session.post(url, headers=headers, data=message, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status == 200:
+                    _LOGGER.debug(f"✅ Successfully sent message via {strategy_name}")
+                    return True
+                elif resp.status == 404:
                     response_text = await resp.text()
-                    _LOGGER.error(f"Failed to send message to MCP endpoint {url}: {resp.status} - {response_text}")
-                    _LOGGER.error(f"Failed message was: {message}")
+                    _LOGGER.debug(f"Session expired for {strategy_name}: {resp.status} - {response_text}")
+                    # If this was a session-specific endpoint, clear it
+                    if "session ID" in response_text or "Could not find" in response_text:
+                        self._latest_endpoint = None
+                        self._message_endpoints.clear()
+                        _LOGGER.debug("Cleared expired session endpoints")
+                    return False
                 else:
-                    _LOGGER.debug(f"✅ Successfully sent message to MCP endpoint {url}")
+                    response_text = await resp.text()
+                    _LOGGER.debug(f"Failed {strategy_name}: {resp.status} - {response_text}")
+                    return False
+                    
+        except asyncio.TimeoutError:
+            _LOGGER.debug(f"Timeout for {strategy_name}")
+            return False
         except Exception as err:
-            _LOGGER.error(f"Exception sending message to MCP endpoint {url}: {err}")
-            _LOGGER.error(f"Failed message was: {message}")
+            _LOGGER.debug(f"Exception for {strategy_name}: {err}")
+            return False
 
     async def receive_from_mcp(self):
         """Async generator to receive messages from MCP Server (yields actual message content)."""
@@ -181,24 +185,32 @@ class XiaozhiMCPClient:
                     if data and data != '[DONE]':
                         # Check if this is a message endpoint path
                         if data.startswith('/mcp_server/messages/') or data.startswith('/mcp_server/message/'):
-                            # This is a message endpoint - store it for sending
+                            # This is a session endpoint - store it
                             self._latest_endpoint = data
-                            msg_id = data.split('/')[-1]  # Extract ID from path
-                            self._latest_message_id = msg_id
-                            self._message_endpoints[msg_id] = data
-                            _LOGGER.debug(f"← Stored MCP endpoint: {data}")
+                            session_id = data.split('/')[-1]  # Extract session ID from path
+                            _LOGGER.debug(f"← Received new session endpoint: {data} (session: {session_id})")
                             # Don't queue endpoint paths as messages
                         elif data.startswith('/mcp_server/'):
                             # This might be another type of MCP endpoint
+                            old_endpoint = self._latest_endpoint
                             self._latest_endpoint = data
-                            _LOGGER.debug(f"← Stored MCP endpoint (generic): {data}")
+                            _LOGGER.debug(f"← Updated endpoint from {old_endpoint} to {data}")
                         else:
                             # This is actual message content - queue it
                             try:
                                 # Validate that it's proper JSON before queuing
-                                json.loads(data)
+                                parsed = json.loads(data)
                                 await self._sse_queue.put(data)
                                 _LOGGER.debug(f"← Queued MCP message: {data[:100]}...")
+                                
+                                # If this is an error response about session not found, clear endpoints
+                                if isinstance(parsed, dict) and parsed.get('error'):
+                                    error_msg = str(parsed.get('error', {}))
+                                    if 'session' in error_msg.lower() or 'not found' in error_msg.lower():
+                                        _LOGGER.debug("Received error about session, clearing endpoints")
+                                        self._latest_endpoint = None
+                                        self._message_endpoints.clear()
+                                        
                             except json.JSONDecodeError:
                                 # Not JSON, might be a different format or endpoint
                                 if data.startswith('/'):
@@ -268,3 +280,69 @@ class XiaozhiMCPClient:
         except Exception as exc:
             _LOGGER.error("MCP Server connection test failed: %s", exc)
             return False
+
+    async def check_entity_exposure(self) -> tuple[bool, list[str]]:
+        """
+        Check if Home Assistant entities are properly exposed to the MCP server.
+        Returns (has_entities, entity_list).
+        """
+        try:
+            session = await self._ensure_session()
+            base_url = self.mcp_server_url.split('/mcp_server/sse')[0]
+            
+            # Try to query available tools/resources from MCP server
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+            }
+            
+            # Test message to check what capabilities are available
+            test_message = {
+                "jsonrpc": "2.0",
+                "id": "test_entities",
+                "method": "tools/list"
+            }
+            
+            # Try the generic messages endpoint first
+            url = base_url + "/mcp_server/messages"
+            
+            try:
+                async with session.post(
+                    url, 
+                    headers=headers, 
+                    data=json.dumps(test_message),
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as response:
+                    
+                    if response.status == 200:
+                        response_data = await response.json()
+                        _LOGGER.debug("MCP tools/list response: %s", response_data)
+                        
+                        # Check if we got a valid tools list
+                        if isinstance(response_data, dict):
+                            tools = response_data.get('result', {}).get('tools', [])
+                            if tools:
+                                tool_names = [tool.get('name', 'unknown') for tool in tools]
+                                _LOGGER.info("Found %d MCP tools: %s", len(tools), tool_names)
+                                return True, tool_names
+                            else:
+                                _LOGGER.warning("MCP server responded but no tools found. This may indicate entities are not exposed.")
+                                return False, []
+                        else:
+                            _LOGGER.warning("Unexpected MCP response format: %s", response_data)
+                            return False, []
+                    else:
+                        response_text = await response.text()
+                        _LOGGER.warning("Failed to check MCP entities: %s - %s", response.status, response_text)
+                        return False, []
+                        
+            except asyncio.TimeoutError:
+                _LOGGER.warning("Timeout checking MCP entity exposure")
+                return False, []
+            except Exception as err:
+                _LOGGER.warning("Error checking MCP entity exposure: %s", err)
+                return False, []
+                
+        except Exception as exc:
+            _LOGGER.error("Failed to check entity exposure: %s", exc)
+            return False, []

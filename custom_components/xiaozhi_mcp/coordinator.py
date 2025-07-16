@@ -81,6 +81,11 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
 
         # Setup MCP client
         self._mcp_client = XiaozhiMCPClient(hass, access_token, mcp_server_url)
+        
+        # Entity exposure tracking
+        self._has_exposed_entities = False
+        self._exposed_entity_list = []
+        self._entity_exposure_checked = False
 
     async def async_setup(self) -> None:
         """Set up the coordinator."""
@@ -98,6 +103,25 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
                 mcp_connected = await self._mcp_client.test_connection()
                 if mcp_connected:
                     _LOGGER.info("Successfully connected to MCP Server")
+                    
+                    # Check if entities are exposed to MCP server
+                    _LOGGER.info("Checking if Home Assistant entities are exposed to MCP server...")
+                    has_entities, entity_list = await self._mcp_client.check_entity_exposure()
+                    
+                    self._has_exposed_entities = has_entities
+                    self._exposed_entity_list = entity_list
+                    self._entity_exposure_checked = True
+                    
+                    if has_entities:
+                        _LOGGER.info("✅ Found %d exposed entities/tools in MCP server: %s", len(entity_list), entity_list)
+                    else:
+                        _LOGGER.warning("⚠️  No entities appear to be exposed to the MCP server!")
+                        _LOGGER.warning("This is likely why Xiaozhi can only control volume/screen but not Home Assistant entities.")
+                        _LOGGER.warning("Please check the MCP Server integration settings and ensure entities are exposed:")
+                        _LOGGER.warning("1. Go to Settings → Devices & Services → Model Context Protocol Server")
+                        _LOGGER.warning("2. Configure which entities should be exposed to the MCP server")
+                        _LOGGER.warning("3. Make sure lights, switches, and other entities you want to control are enabled")
+                        
                     break
                 else:
                     _LOGGER.debug("MCP Server connection failed, retrying...")
@@ -365,6 +389,27 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
             self._error_count += 1
             raise UpdateFailed(f"Failed to send message: {err}")
 
+    async def async_check_entity_exposure(self) -> None:
+        """Check entity exposure and update internal state."""
+        _LOGGER.info("Manually checking entity exposure...")
+        try:
+            has_entities, entity_list = await self._mcp_client.check_entity_exposure()
+            
+            self._has_exposed_entities = has_entities
+            self._exposed_entity_list = entity_list
+            self._entity_exposure_checked = True
+            
+            if has_entities:
+                _LOGGER.info("✅ Found %d exposed entities: %s", len(entity_list), entity_list)
+            else:
+                _LOGGER.warning("⚠️  No entities exposed to MCP server")
+                
+            # Trigger update of all entities
+            await self.async_request_refresh()
+            
+        except Exception as err:
+            _LOGGER.error("Failed to check entity exposure: %s", err)
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data."""
         return {
@@ -399,3 +444,18 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
     def error_count(self) -> int:
         """Return error count."""
         return self._error_count
+
+    @property
+    def has_exposed_entities(self) -> bool:
+        """Return if entities are exposed to MCP server."""
+        return self._has_exposed_entities
+
+    @property
+    def exposed_entity_list(self) -> list[str]:
+        """Return list of exposed entities."""
+        return self._exposed_entity_list
+
+    @property
+    def entity_exposure_checked(self) -> bool:
+        """Return if entity exposure has been checked."""
+        return self._entity_exposure_checked

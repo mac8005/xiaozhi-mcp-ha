@@ -147,6 +147,23 @@ Once configured, your Xiaozhi device can:
 
 ## Troubleshooting
 
+### Common Issue: "Device only controls volume/screen, not lights"
+
+If your Xiaozhi device says it only knows how to control volume and screen when you ask it to control Home Assistant entities, this is likely an **entity exposure** issue:
+
+**Symptoms:**
+- Integration connects successfully 
+- Device responds to voice commands
+- But device says it doesn't know how to control lights, switches, etc.
+- Logs show "Could not find session ID" or 404 errors
+
+**Solution:**
+1. **Check Entity Exposure Status**: Look at the "Entity Exposure Status" sensor created by this integration
+2. **Configure MCP Server**: Go to `Settings` → `Devices & Services` → `Model Context Protocol Server`
+3. **Expose Entities**: Make sure the entities you want to control (lights, switches, climate, etc.) are exposed to the MCP server
+4. **Restart**: Restart Home Assistant after changing entity exposure settings
+5. **Test**: Use the `xiaozhi_mcp.check_entity_exposure` service to verify entities are properly exposed
+
 ### Important Notes
 
 - **Critical Dependency**: This integration requires the official Home Assistant MCP Server integration to be installed and running
@@ -155,6 +172,14 @@ Once configured, your Xiaozhi device can:
 - **Entity Exposure**: Make sure to expose the entities you want to control via the MCP Server settings in Home Assistant
 - **Local Communication**: All Home Assistant communication happens locally through the official MCP server
 - **No External URLs**: No need to configure external Home Assistant URLs or expose your instance to the internet
+
+### Available Services
+
+This integration provides helpful services for troubleshooting:
+
+- `xiaozhi_mcp.reconnect`: Force reconnection to Xiaozhi endpoint
+- `xiaozhi_mcp.send_message`: Send a test message
+- `xiaozhi_mcp.check_entity_exposure`: Check which entities are exposed to MCP server
 
 ### Debug Logging
 
