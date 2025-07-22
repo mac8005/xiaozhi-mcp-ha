@@ -70,7 +70,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
 
-        connect_kwargs = {"timeout": 10}
+        connect_kwargs = {"close_timeout": 10}
         if xiaozhi_endpoint.startswith("wss://"):
             connect_kwargs["ssl"] = ssl_context
 
