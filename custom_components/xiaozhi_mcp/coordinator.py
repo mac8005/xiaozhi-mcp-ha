@@ -30,9 +30,12 @@ from .const import (
     CONF_ENABLE_LOGGING,
     CONF_SCAN_INTERVAL,
     CONF_XIAOZHI_ENDPOINT,
+    CONNECTION_MONITOR_INTERVAL,
+    CONNECTION_TIMEOUT,
     DOMAIN,
     INITIAL_BACKOFF,
     MAX_BACKOFF,
+    MAX_CONSECUTIVE_FAILURES,
     MAX_RECONNECT_ATTEMPTS,
 )
 from .mcp_client import XiaozhiMCPClient
@@ -70,6 +73,7 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
 
         # Connection state
         self._connected = False
+        self._connecting = False  # Track if currently attempting to connect
         self._websocket = None
         self._mcp_client = None
         self._reconnect_count = 0
@@ -77,6 +81,8 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         self._error_count = 0
         self._last_seen = None
         self._reconnect_task = None
+        self._connection_monitor_task = None
+        self._consecutive_failures = 0  # Track consecutive connection failures
         self._backoff = INITIAL_BACKOFF
 
         # Setup MCP client
@@ -137,6 +143,11 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         # Start initial connection
         await self.async_reconnect()
 
+        # Start connection monitoring
+        self._connection_monitor_task = asyncio.create_task(
+            self._connection_monitor_loop()
+        )
+
         # Start status update
         await self.async_refresh()
 
@@ -144,8 +155,20 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         """Shutdown the coordinator."""
         _LOGGER.info("Shutting down Xiaozhi MCP coordinator")
 
+        # Cancel monitoring and reconnection tasks
+        if self._connection_monitor_task:
+            self._connection_monitor_task.cancel()
+            try:
+                await self._connection_monitor_task
+            except asyncio.CancelledError:
+                pass
+
         if self._reconnect_task:
             self._reconnect_task.cancel()
+            try:
+                await self._reconnect_task
+            except asyncio.CancelledError:
+                pass
 
         if self._websocket:
             await self._websocket.close()
@@ -155,6 +178,7 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
             await self._mcp_client.disconnect_from_mcp()
 
         self._connected = False
+        self._connecting = False
 
     async def async_reconnect(self) -> None:
         """Reconnect to the Xiaozhi MCP endpoint."""
@@ -163,43 +187,119 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
 
         self._reconnect_task = asyncio.create_task(self._reconnect_loop())
 
-    async def _reconnect_loop(self) -> None:
-        """Reconnection loop with exponential backoff and jitter like the working example."""
+    async def async_wait_for_connection(self, timeout: int = 30) -> bool:
+        """Wait for connection to be established, with timeout."""
+        start_time = datetime.now()
+        while (datetime.now() - start_time).total_seconds() < timeout:
+            if self._connected:
+                return True
+            if not self._connecting:
+                # Not connecting anymore but also not connected - failed
+                return False
+            await asyncio.sleep(0.5)  # Check every 500ms
+        return False  # Timeout reached
+
+    async def _connection_monitor_loop(self) -> None:
+        """Monitor connection health and trigger automatic reconnection if needed."""
+        _LOGGER.debug("Starting connection health monitor")
+
         while True:
             try:
-                if self._reconnect_count > 0:
-                    # Add jitter like in the working example
-                    wait_time = self._backoff * (1 + random.random() * 0.1)
+                await asyncio.sleep(CONNECTION_MONITOR_INTERVAL)
+
+                # Skip monitoring if we're already reconnecting
+                if self._connecting:
+                    continue
+
+                # Check if connection appears healthy
+                if self._connected and self._websocket:
+                    try:
+                        # Check if websocket is still alive with a ping
+                        pong_waiter = await self._websocket.ping()
+                        await asyncio.wait_for(pong_waiter, timeout=CONNECTION_TIMEOUT)
+
+                        # Reset failure count on successful ping
+                        self._consecutive_failures = 0
+
+                        # Update last seen time
+                        self._last_seen = datetime.now()
+
+                    except (asyncio.TimeoutError, ConnectionClosed, WebSocketException):
+                        self._consecutive_failures += 1
+                        _LOGGER.warning(
+                            "Connection health check failed (attempt %d/%d)",
+                            self._consecutive_failures,
+                            MAX_CONSECUTIVE_FAILURES,
+                        )
+
+                        if self._consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                            _LOGGER.warning(
+                                "Connection appears stale after %d consecutive failures, triggering reconnection",
+                                self._consecutive_failures,
+                            )
+                            self._connected = False
+                            await self.async_reconnect()
+
+                elif not self._connected and not self._connecting:
+                    # Connection is down and we're not trying to reconnect
                     _LOGGER.info(
-                        "Waiting %.2f seconds before reconnection attempt %d",
-                        wait_time,
-                        self._reconnect_count,
+                        "Connection is down, triggering automatic reconnection"
                     )
-                    await asyncio.sleep(wait_time)
+                    await self.async_reconnect()
 
-                await self._connect()
-
-                # Reset backoff on successful connection (like working example)
-                self._backoff = INITIAL_BACKOFF
-                self._reconnect_count = 0
+            except asyncio.CancelledError:
+                _LOGGER.debug("Connection monitor task cancelled")
                 break
-
             except Exception as err:
-                self._reconnect_count += 1
-                self._error_count += 1
+                _LOGGER.error("Error in connection monitor: %s", err)
+                # Don't break the loop on unexpected errors
+                await asyncio.sleep(CONNECTION_MONITOR_INTERVAL)
 
-                if self._reconnect_count > MAX_RECONNECT_ATTEMPTS:
-                    _LOGGER.error("Max reconnection attempts reached, giving up")
+    async def _reconnect_loop(self) -> None:
+        """Reconnection loop with exponential backoff and jitter like the working example."""
+        self._connecting = True
+
+        try:
+            while True:
+                try:
+                    if self._reconnect_count > 0:
+                        # Add jitter like in the working example
+                        wait_time = self._backoff * (1 + random.random() * 0.1)
+                        _LOGGER.info(
+                            "Waiting %.2f seconds before reconnection attempt %d",
+                            wait_time,
+                            self._reconnect_count,
+                        )
+                        await asyncio.sleep(wait_time)
+
+                    await self._connect()
+
+                    # Reset backoff on successful connection (like working example)
+                    self._backoff = INITIAL_BACKOFF
+                    self._reconnect_count = 0
+                    self._consecutive_failures = (
+                        0  # Reset failure count on successful connection
+                    )
                     break
 
-                _LOGGER.warning(
-                    "Connection failed (attempt %d): %s",
-                    self._reconnect_count,
-                    err,
-                )
+                except Exception as err:
+                    self._reconnect_count += 1
+                    self._error_count += 1
 
-                # Exponential backoff with max limit
-                self._backoff = min(self._backoff * 2, MAX_BACKOFF)
+                    if self._reconnect_count > MAX_RECONNECT_ATTEMPTS:
+                        _LOGGER.error("Max reconnection attempts reached, giving up")
+                        break
+
+                    _LOGGER.warning(
+                        "Connection failed (attempt %d): %s",
+                        self._reconnect_count,
+                        err,
+                    )
+
+                    # Exponential backoff with max limit
+                    self._backoff = min(self._backoff * 2, MAX_BACKOFF)
+        finally:
+            self._connecting = False
 
     async def _connect(self) -> None:
         """Connect to the WebSocket endpoint and MCP Server."""
@@ -416,6 +516,11 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
     def connected(self) -> bool:
         """Return if connected."""
         return self._connected
+
+    @property
+    def connecting(self) -> bool:
+        """Return if currently attempting to connect."""
+        return self._connecting
 
     @property
     def last_seen(self) -> datetime | None:
