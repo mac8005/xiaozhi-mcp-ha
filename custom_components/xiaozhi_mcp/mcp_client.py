@@ -247,11 +247,11 @@ class XiaozhiMCPClient:
 
             _LOGGER.debug("Testing MCP Server connection to %s", self.mcp_server_url)
 
-            # Test with a simple GET request to the SSE endpoint
+            # Test with a simple GET request to the SSE endpoint with longer timeout
             async with session.get(
                 self.mcp_server_url,
                 headers=headers,
-                timeout=aiohttp.ClientTimeout(total=10),
+                timeout=aiohttp.ClientTimeout(total=20),  # Increased from 10 to 20 seconds
             ) as response:
                 _LOGGER.debug("MCP Server response status: %s", response.status)
                 _LOGGER.debug("MCP Server response headers: %s", dict(response.headers))
@@ -300,7 +300,7 @@ class XiaozhiMCPClient:
             )
             return False
         except asyncio.TimeoutError:
-            _LOGGER.error("MCP Server connection timed out")
+            _LOGGER.error("MCP Server connection timed out (20 seconds)")
             return False
         except Exception as exc:
             _LOGGER.error("MCP Server connection test failed: %s", exc)
