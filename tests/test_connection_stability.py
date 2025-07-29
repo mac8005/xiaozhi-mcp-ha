@@ -17,6 +17,8 @@ from custom_components.xiaozhi_mcp.const import (
     CONNECTION_TIMEOUT,
     DOMAIN,
     MAX_CONSECUTIVE_FAILURES,
+    SWITCH_CONNECTION_TIMEOUT,
+    SWITCH_MAX_RETRIES,
 )
 from custom_components.xiaozhi_mcp.coordinator import XiaozhiMCPCoordinator
 
@@ -196,3 +198,15 @@ class TestConnectionStability:
 
         # Verify connecting state was reset
         assert coordinator._connecting is False
+
+    def test_new_timeout_constants(self):
+        """Test that new timeout constants have reasonable values."""
+        # Verify new timeout values are properly set
+        assert CONNECTION_TIMEOUT == 20  # Increased from 10
+        assert SWITCH_CONNECTION_TIMEOUT == 45  # New constant
+        assert SWITCH_MAX_RETRIES == 3  # New constant
+        
+        # Ensure values are reasonable
+        assert CONNECTION_TIMEOUT > 10  # More than the old value
+        assert SWITCH_CONNECTION_TIMEOUT > CONNECTION_TIMEOUT  # Switch timeout should be longer
+        assert 1 <= SWITCH_MAX_RETRIES <= 5  # Reasonable retry count

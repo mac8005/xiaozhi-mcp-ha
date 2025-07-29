@@ -219,17 +219,20 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
                         await asyncio.wait_for(pong_waiter, timeout=CONNECTION_TIMEOUT)
 
                         # Reset failure count on successful ping
+                        if self._consecutive_failures > 0:
+                            _LOGGER.debug("Connection ping successful, resetting failure count")
                         self._consecutive_failures = 0
 
                         # Update last seen time
                         self._last_seen = datetime.now()
 
-                    except (asyncio.TimeoutError, ConnectionClosed, WebSocketException):
+                    except (asyncio.TimeoutError, ConnectionClosed, WebSocketException) as err:
                         self._consecutive_failures += 1
                         _LOGGER.warning(
-                            "Connection health check failed (attempt %d/%d)",
+                            "Connection health check failed (attempt %d/%d): %s",
                             self._consecutive_failures,
                             MAX_CONSECUTIVE_FAILURES,
+                            err
                         )
 
                         if self._consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
@@ -238,6 +241,25 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
                                 self._consecutive_failures,
                             )
                             self._connected = False
+                            # Wait a moment before triggering reconnection to avoid rapid retries
+                            await asyncio.sleep(1)
+                            await self.async_reconnect()
+                    except Exception as err:
+                        # Handle unexpected errors in ping
+                        self._consecutive_failures += 1
+                        _LOGGER.error(
+                            "Unexpected error during connection health check (attempt %d/%d): %s",
+                            self._consecutive_failures,
+                            MAX_CONSECUTIVE_FAILURES,
+                            err
+                        )
+                        
+                        if self._consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                            _LOGGER.warning(
+                                "Connection health check errors exceeded threshold, triggering reconnection"
+                            )
+                            self._connected = False
+                            await asyncio.sleep(1)
                             await self.async_reconnect()
 
                 elif not self._connected and not self._connecting:
@@ -336,9 +358,9 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
             try:
                 self._websocket = await websockets.connect(
                     self.xiaozhi_endpoint,
-                    ping_interval=20,
-                    ping_timeout=10,
-                    close_timeout=10,
+                    ping_interval=30,  # Increased from 20 for more stable long-running connections
+                    ping_timeout=CONNECTION_TIMEOUT,  # Now 20 seconds, increased from 10
+                    close_timeout=15,  # Increased from 10 for cleaner disconnections
                     **connect_kwargs,
                 )
                 _LOGGER.info("✅ Connected to Xiaozhi WebSocket successfully")

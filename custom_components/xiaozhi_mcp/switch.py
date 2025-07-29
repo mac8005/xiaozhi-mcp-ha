@@ -13,7 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, SWITCH_CONNECTION_TIMEOUT, SWITCH_MAX_RETRIES
 from .coordinator import XiaozhiMCPCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -82,15 +82,55 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         if self.entity_description.key == "connection":
-            # Start reconnection process
-            await self.coordinator.async_reconnect()
+            # Implement retry logic to prevent double-toggle requirement
+            last_exception = None
+            
+            for attempt in range(SWITCH_MAX_RETRIES):
+                try:
+                    _LOGGER.debug("Connection attempt %d/%d", attempt + 1, SWITCH_MAX_RETRIES)
+                    
+                    # Start reconnection process
+                    await self.coordinator.async_reconnect()
 
-            # Wait for connection to be established (or fail)
-            # This prevents the switch from immediately flipping back to "off"
-            success = await self.coordinator.async_wait_for_connection(timeout=15)
-            if not success:
-                # Log warning but don't raise exception - the switch will show correct state
-                _LOGGER.warning("Connection attempt did not complete within timeout")
+                    # Wait for connection to be established with longer timeout
+                    success = await self.coordinator.async_wait_for_connection(
+                        timeout=SWITCH_CONNECTION_TIMEOUT
+                    )
+                    
+                    if success:
+                        _LOGGER.info("Connection established successfully on attempt %d", attempt + 1)
+                        break
+                    else:
+                        last_exception = Exception("Connection attempt did not complete within timeout")
+                        _LOGGER.warning(
+                            "Connection attempt %d/%d failed: timeout after %d seconds",
+                            attempt + 1, SWITCH_MAX_RETRIES, SWITCH_CONNECTION_TIMEOUT
+                        )
+                        
+                        # Don't retry immediately if this was the last attempt
+                        if attempt < SWITCH_MAX_RETRIES - 1:
+                            # Brief delay before retry to allow cleanup
+                            await asyncio.sleep(2)
+                            
+                except Exception as err:
+                    last_exception = err
+                    _LOGGER.warning(
+                        "Connection attempt %d/%d failed with error: %s", 
+                        attempt + 1, SWITCH_MAX_RETRIES, err
+                    )
+                    
+                    # Don't retry immediately if this was the last attempt
+                    if attempt < SWITCH_MAX_RETRIES - 1:
+                        # Brief delay before retry
+                        await asyncio.sleep(2)
+            
+            # If all attempts failed, log final warning but don't raise exception
+            # The switch will show the correct state based on coordinator.connected
+            if not self.coordinator.connected and last_exception:
+                _LOGGER.warning(
+                    "All %d connection attempts failed. Last error: %s", 
+                    SWITCH_MAX_RETRIES, last_exception
+                )
 
         elif self.entity_description.key == "debug_logging":
             self.coordinator.enable_logging = True

@@ -26,9 +26,13 @@ MAX_RECONNECT_ATTEMPTS: Final = 100
 # Connection monitoring settings
 CONNECTION_MONITOR_INTERVAL: Final = 30  # Check connection health every 30 seconds
 CONNECTION_TIMEOUT: Final = (
-    10  # Consider connection dead after 10 seconds without response
+    20  # Consider connection dead after 20 seconds without response (increased from 10)
 )
 MAX_CONSECUTIVE_FAILURES: Final = 3  # Auto-reconnect after 3 consecutive failures
+
+# Switch connection settings
+SWITCH_CONNECTION_TIMEOUT: Final = 45  # Wait up to 45 seconds for connection establishment
+SWITCH_MAX_RETRIES: Final = 3  # Maximum retry attempts for switch connection
 
 # Error codes
 ERROR_CODES: Final = {
