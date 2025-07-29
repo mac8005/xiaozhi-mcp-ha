@@ -23,6 +23,13 @@ INITIAL_BACKOFF: Final = 1  # Initial wait time in seconds
 MAX_BACKOFF: Final = 60  # Maximum wait time in seconds
 MAX_RECONNECT_ATTEMPTS: Final = 100
 
+# Connection monitoring settings
+CONNECTION_MONITOR_INTERVAL: Final = 30  # Check connection health every 30 seconds
+CONNECTION_TIMEOUT: Final = (
+    10  # Consider connection dead after 10 seconds without response
+)
+MAX_CONSECUTIVE_FAILURES: Final = 3  # Auto-reconnect after 3 consecutive failures
+
 # Error codes
 ERROR_CODES: Final = {
     "CONNECTION_FAILED": "connection_failed",

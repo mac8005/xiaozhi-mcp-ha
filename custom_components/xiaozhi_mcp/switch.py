@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
@@ -13,6 +15,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import XiaozhiMCPCoordinator
+
+_LOGGER = logging.getLogger(__name__)
 
 SWITCH_DESCRIPTIONS: tuple[SwitchEntityDescription, ...] = (
     SwitchEntityDescription(
@@ -68,7 +72,9 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
     def is_on(self) -> bool:
         """Return true if switch is on."""
         if self.entity_description.key == "connection":
-            return self.coordinator.connected
+            # Consider switch "on" if connected OR currently connecting
+            # This prevents the switch from immediately flipping back to "off"
+            return self.coordinator.connected or self.coordinator.connecting
         elif self.entity_description.key == "debug_logging":
             return self.coordinator.enable_logging
         return False
@@ -76,7 +82,16 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         if self.entity_description.key == "connection":
+            # Start reconnection process
             await self.coordinator.async_reconnect()
+
+            # Wait for connection to be established (or fail)
+            # This prevents the switch from immediately flipping back to "off"
+            success = await self.coordinator.async_wait_for_connection(timeout=15)
+            if not success:
+                # Log warning but don't raise exception - the switch will show correct state
+                _LOGGER.warning("Connection attempt did not complete within timeout")
+
         elif self.entity_description.key == "debug_logging":
             self.coordinator.enable_logging = True
         await self.coordinator.async_request_refresh()
@@ -84,10 +99,37 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
         if self.entity_description.key == "connection":
-            await self.coordinator.async_shutdown()
+            # Properly disconnect by shutting down the coordinator connection
+            # but not the entire coordinator (which would affect other entities)
+            await self._disconnect_only()
         elif self.entity_description.key == "debug_logging":
             self.coordinator.enable_logging = False
         await self.coordinator.async_request_refresh()
+
+    async def _disconnect_only(self) -> None:
+        """Disconnect the websocket connection without shutting down the entire coordinator."""
+        coordinator = self.coordinator
+
+        # Cancel any ongoing reconnection attempts
+        if coordinator._reconnect_task:
+            coordinator._reconnect_task.cancel()
+            try:
+                await coordinator._reconnect_task
+            except asyncio.CancelledError:
+                pass
+
+        # Close websocket connection
+        if coordinator._websocket:
+            await coordinator._websocket.close()
+            coordinator._websocket = None
+
+        # Disconnect from MCP
+        if coordinator._mcp_client:
+            await coordinator._mcp_client.disconnect_from_mcp()
+
+        # Update state
+        coordinator._connected = False
+        coordinator._connecting = False
 
     @property
     def available(self) -> bool:
