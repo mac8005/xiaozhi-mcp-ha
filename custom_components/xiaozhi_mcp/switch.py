@@ -82,56 +82,61 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         if self.entity_description.key == "connection":
-            # User explicitly turned on connection again
             self.coordinator._manual_disconnect = False
-            # Implement retry logic to prevent double-toggle requirement
             last_exception = None
-            
+
+            # If HA thinks we're connected but websocket task is gone, force reset
+            if self.coordinator.connected and not self.coordinator._message_task:
+                _LOGGER.debug("Detected connected state without active message task; forcing reset before reconnect")
+                await self._disconnect_only()
+
             for attempt in range(SWITCH_MAX_RETRIES):
                 try:
-                    _LOGGER.debug("Connection attempt %d/%d", attempt + 1, SWITCH_MAX_RETRIES)
-                    
-                    # Start reconnection process
+                    _LOGGER.debug(
+                        "Connection attempt %d/%d (connecting=%s, connected=%s)",
+                        attempt + 1,
+                        SWITCH_MAX_RETRIES,
+                        self.coordinator.connecting,
+                        self.coordinator.connected,
+                    )
+
                     await self.coordinator.async_reconnect()
 
-                    # Wait for connection to be established with longer timeout
                     success = await self.coordinator.async_wait_for_connection(
                         timeout=SWITCH_CONNECTION_TIMEOUT
                     )
-                    
+
                     if success:
+                        # Confirm message task alive
+                        if not self.coordinator._message_task:
+                            _LOGGER.debug("Connection established but message task missing; retrying")
+                            raise Exception("Message handling task not running")
                         _LOGGER.info("Connection established successfully on attempt %d", attempt + 1)
                         break
                     else:
                         last_exception = Exception("Connection attempt did not complete within timeout")
                         _LOGGER.warning(
-                            "Connection attempt %d/%d failed: timeout after %d seconds",
-                            attempt + 1, SWITCH_MAX_RETRIES, SWITCH_CONNECTION_TIMEOUT
+                            "Connection attempt %d/%d failed: timeout after %d seconds (connecting=%s, connected=%s)",
+                            attempt + 1,
+                            SWITCH_MAX_RETRIES,
+                            SWITCH_CONNECTION_TIMEOUT,
+                            self.coordinator.connecting,
+                            self.coordinator.connected,
                         )
-                        
-                        # Don't retry immediately if this was the last attempt
                         if attempt < SWITCH_MAX_RETRIES - 1:
-                            # Brief delay before retry to allow cleanup
                             await asyncio.sleep(2)
-                            
+
                 except Exception as err:
                     last_exception = err
                     _LOGGER.warning(
-                        "Connection attempt %d/%d failed with error: %s", 
-                        attempt + 1, SWITCH_MAX_RETRIES, err
+                        "Connection attempt %d/%d failed with error: %s", attempt + 1, SWITCH_MAX_RETRIES, err
                     )
-                    
-                    # Don't retry immediately if this was the last attempt
                     if attempt < SWITCH_MAX_RETRIES - 1:
-                        # Brief delay before retry
                         await asyncio.sleep(2)
-            
-            # If all attempts failed, log final warning but don't raise exception
-            # The switch will show the correct state based on coordinator.connected
+
             if not self.coordinator.connected and last_exception:
                 _LOGGER.warning(
-                    "All %d connection attempts failed. Last error: %s", 
-                    SWITCH_MAX_RETRIES, last_exception
+                    "All %d connection attempts failed. Last error: %s", SWITCH_MAX_RETRIES, last_exception
                 )
 
         elif self.entity_description.key == "debug_logging":

@@ -89,6 +89,8 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         # (user turned the switch off) and an unintentional drop that should
         # trigger automatic reconnection immediately.
         self._manual_disconnect = False
+        # Track background message handling task so connect() can return quickly
+        self._message_task = None
 
         # Setup MCP client
         self._mcp_client = XiaozhiMCPClient(hass, access_token, mcp_server_url)
@@ -163,6 +165,15 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         # Treat shutdown as manual so no auto reconnect attempts race with HA stop.
         self._manual_disconnect = True
 
+        # Cancel message task if running
+        if self._message_task:
+            self._message_task.cancel()
+            try:
+                await self._message_task
+            except asyncio.CancelledError:
+                pass
+            self._message_task = None
+
         # Cancel monitoring and reconnection tasks
         if self._connection_monitor_task:
             self._connection_monitor_task.cancel()
@@ -202,16 +213,32 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         self._reconnect_task = asyncio.create_task(self._reconnect_loop())
 
     async def async_wait_for_connection(self, timeout: int = 30) -> bool:
-        """Wait for connection to be established, with timeout."""
+        """Wait for connection to be established, with timeout and state logging."""
         start_time = datetime.now()
+        last_log = -1
         while (datetime.now() - start_time).total_seconds() < timeout:
             if self._connected:
                 return True
             if not self._connecting:
-                # Not connecting anymore but also not connected - failed
                 return False
-            await asyncio.sleep(0.5)  # Check every 500ms
-        return False  # Timeout reached
+            # Log every 5 seconds while waiting
+            waited = int((datetime.now() - start_time).total_seconds())
+            if waited // 5 != last_log // 5:
+                _LOGGER.debug(
+                    "Waiting for connection... %ds elapsed (connecting=%s, connected=%s)",
+                    waited,
+                    self._connecting,
+                    self._connected,
+                )
+                last_log = waited
+            await asyncio.sleep(0.5)
+        _LOGGER.debug(
+            "Timeout waiting for connection after %d seconds (connecting=%s, connected=%s)",
+            timeout,
+            self._connecting,
+            self._connected,
+        )
+        return False
 
     async def _connection_monitor_loop(self) -> None:
         """Monitor connection health and trigger automatic reconnection if needed."""
@@ -339,7 +366,7 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
             self._connecting = False
 
     async def _connect(self) -> None:
-        """Connect to the WebSocket endpoint and MCP Server."""
+        """Connect to the WebSocket endpoint and MCP Server (non-blocking)."""
         _LOGGER.info("Connecting to Xiaozhi MCP endpoint: %s", self.xiaozhi_endpoint)
 
         # If this is a fresh connect attempt after an unintended drop, make sure manual flag is false.
@@ -375,11 +402,13 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
                 connect_kwargs["ssl"] = ssl_context
 
             try:
+                # Add open timeout so we don't hang infinitely during initial handshake
                 self._websocket = await websockets.connect(
                     self.xiaozhi_endpoint,
-                    ping_interval=30,  # Increased from 20 for more stable long-running connections
-                    ping_timeout=CONNECTION_TIMEOUT,  # Now 20 seconds, increased from 10
-                    close_timeout=15,  # Increased from 10 for cleaner disconnections
+                    ping_interval=30,
+                    ping_timeout=CONNECTION_TIMEOUT,
+                    close_timeout=15,
+                    open_timeout=CONNECTION_TIMEOUT,
                     **connect_kwargs,
                 )
                 _LOGGER.info("✅ Connected to Xiaozhi WebSocket successfully")
@@ -391,6 +420,10 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
                 raise Exception(
                     f"Invalid Xiaozhi WebSocket URI: {self.xiaozhi_endpoint}"
                 )
+            except asyncio.TimeoutError:
+                raise Exception(
+                    f"WebSocket open handshake timed out after {CONNECTION_TIMEOUT}s"
+                )
             except Exception as err:
                 raise Exception(f"Failed to connect to Xiaozhi WebSocket: {err}")
 
@@ -400,9 +433,15 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
 
             _LOGGER.info("Successfully connected to Xiaozhi MCP endpoint")
 
-            # Start bidirectional message handling
-            await self._handle_messages()
-
+            # Start bidirectional message handling in background so connect returns
+            if self._message_task:
+                self._message_task.cancel()
+                try:
+                    await self._message_task
+                except asyncio.CancelledError:
+                    pass
+            self._message_task = asyncio.create_task(self._handle_messages())
+            return
         except Exception as err:
             self._connected = False
             self._error_count += 1
@@ -415,7 +454,6 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
     async def _handle_messages(self) -> None:
         """Handle bidirectional communication between Xiaozhi WebSocket and HA MCP Server."""
         try:
-            # Create bidirectional pipe using asyncio.gather like the working example
             await asyncio.gather(
                 self._pipe_websocket_to_mcp(),
                 self._pipe_mcp_to_websocket(),
@@ -433,15 +471,18 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
             self._connected = False
             self._error_count += 1
         finally:
-            # If the connection dropped unintentionally, schedule an immediate reconnect
+            if self._connected:
+                _LOGGER.debug("Message handler finishing; marking disconnected")
+            self._connected = False
+            # Clear reference to finished task
+            if self._message_task and self._message_task.done():
+                self._message_task = None
             if not self._manual_disconnect and not self._connecting:
                 _LOGGER.info("Connection lost, scheduling immediate reconnection")
-                # Small delay to allow resources to close cleanly
                 async def _delayed_reconnect():
                     await asyncio.sleep(1)
                     if not self._manual_disconnect and not self._connected:
                         await self.async_reconnect()
-                # Fire and forget
                 self.hass.async_create_task(_delayed_reconnect())
 
     async def _pipe_websocket_to_mcp(self) -> None:
