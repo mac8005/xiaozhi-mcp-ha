@@ -82,6 +82,8 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         if self.entity_description.key == "connection":
+            # User explicitly turned on connection again
+            self.coordinator._manual_disconnect = False
             # Implement retry logic to prevent double-toggle requirement
             last_exception = None
             
@@ -149,6 +151,9 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
     async def _disconnect_only(self) -> None:
         """Disconnect the websocket connection without shutting down the entire coordinator."""
         coordinator = self.coordinator
+
+        # Mark manual disconnect so auto-reconnect logic pauses
+        coordinator._manual_disconnect = True
 
         # Cancel any ongoing reconnection attempts
         if coordinator._reconnect_task:

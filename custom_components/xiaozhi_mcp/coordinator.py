@@ -84,6 +84,11 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         self._connection_monitor_task = None
         self._consecutive_failures = 0  # Track consecutive connection failures
         self._backoff = INITIAL_BACKOFF
+        
+        # Flag to differentiate between an intentional manual disconnect
+        # (user turned the switch off) and an unintentional drop that should
+        # trigger automatic reconnection immediately.
+        self._manual_disconnect = False
 
         # Setup MCP client
         self._mcp_client = XiaozhiMCPClient(hass, access_token, mcp_server_url)
@@ -155,6 +160,9 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         """Shutdown the coordinator."""
         _LOGGER.info("Shutting down Xiaozhi MCP coordinator")
 
+        # Treat shutdown as manual so no auto reconnect attempts race with HA stop.
+        self._manual_disconnect = True
+
         # Cancel monitoring and reconnection tasks
         if self._connection_monitor_task:
             self._connection_monitor_task.cancel()
@@ -182,9 +190,15 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
 
     async def async_reconnect(self) -> None:
         """Reconnect to the Xiaozhi MCP endpoint."""
+        # If user explicitly requested a reconnect we clear manual flag
+        self._manual_disconnect = False
+        # Cancel any existing reconnect task so we don't stack them
         if self._reconnect_task:
             self._reconnect_task.cancel()
-
+            try:
+                await self._reconnect_task
+            except asyncio.CancelledError:
+                pass
         self._reconnect_task = asyncio.create_task(self._reconnect_loop())
 
     async def async_wait_for_connection(self, timeout: int = 30) -> bool:
@@ -207,8 +221,8 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
             try:
                 await asyncio.sleep(CONNECTION_MONITOR_INTERVAL)
 
-                # Skip monitoring if we're already reconnecting
-                if self._connecting:
+                # Skip monitoring if we're already reconnecting or user requested manual disconnect
+                if self._connecting or self._manual_disconnect:
                     continue
 
                 # Check if connection appears healthy
@@ -264,10 +278,11 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
 
                 elif not self._connected and not self._connecting:
                     # Connection is down and we're not trying to reconnect
-                    _LOGGER.info(
-                        "Connection is down, triggering automatic reconnection"
-                    )
-                    await self.async_reconnect()
+                    if not self._manual_disconnect:
+                        _LOGGER.info(
+                            "Connection is down, triggering automatic reconnection"
+                        )
+                        await self.async_reconnect()
 
             except asyncio.CancelledError:
                 _LOGGER.debug("Connection monitor task cancelled")
@@ -326,6 +341,10 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
     async def _connect(self) -> None:
         """Connect to the WebSocket endpoint and MCP Server."""
         _LOGGER.info("Connecting to Xiaozhi MCP endpoint: %s", self.xiaozhi_endpoint)
+
+        # If this is a fresh connect attempt after an unintended drop, make sure manual flag is false.
+        if not self._manual_disconnect:
+            self._manual_disconnect = False
 
         try:
             # First, establish MCP connection
@@ -413,6 +432,17 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Unexpected error in message handling: %s", err)
             self._connected = False
             self._error_count += 1
+        finally:
+            # If the connection dropped unintentionally, schedule an immediate reconnect
+            if not self._manual_disconnect and not self._connecting:
+                _LOGGER.info("Connection lost, scheduling immediate reconnection")
+                # Small delay to allow resources to close cleanly
+                async def _delayed_reconnect():
+                    await asyncio.sleep(1)
+                    if not self._manual_disconnect and not self._connected:
+                        await self.async_reconnect()
+                # Fire and forget
+                self.hass.async_create_task(_delayed_reconnect())
 
     async def _pipe_websocket_to_mcp(self) -> None:
         """Pipe messages from Xiaozhi WebSocket to HA MCP Server."""
