@@ -13,7 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, SWITCH_CONNECTION_TIMEOUT, SWITCH_MAX_RETRIES
+from .const import CONF_ENABLE_LOGGING, DOMAIN, SWITCH_CONNECTION_TIMEOUT, SWITCH_MAX_RETRIES
 from .coordinator import XiaozhiMCPCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -140,7 +140,11 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
                 )
 
         elif self.entity_description.key == "debug_logging":
+            # Enable debug logging for this integration
             self.coordinator.enable_logging = True
+            self._update_logger_level(True)
+            # Persist the state to config entry
+            await self._persist_logging_state(True)
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -150,7 +154,11 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
             # but not the entire coordinator (which would affect other entities)
             await self._disconnect_only()
         elif self.entity_description.key == "debug_logging":
+            # Disable debug logging for this integration
             self.coordinator.enable_logging = False
+            self._update_logger_level(False)
+            # Persist the state to config entry
+            await self._persist_logging_state(False)
         await self.coordinator.async_request_refresh()
 
     async def _disconnect_only(self) -> None:
@@ -180,6 +188,36 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
         # Update state
         coordinator._connected = False
         coordinator._connecting = False
+
+    def _update_logger_level(self, debug_enabled: bool) -> None:
+        """Update logger levels for the integration."""
+        level = logging.DEBUG if debug_enabled else logging.INFO
+        
+        # Update logger levels for all xiaozhi_mcp loggers
+        logging.getLogger("custom_components.xiaozhi_mcp").setLevel(level)
+        logging.getLogger("custom_components.xiaozhi_mcp.coordinator").setLevel(level)
+        logging.getLogger("custom_components.xiaozhi_mcp.mcp_client").setLevel(level)
+        logging.getLogger("custom_components.xiaozhi_mcp.switch").setLevel(level)
+        
+        _LOGGER.info("Debug logging %s for Xiaozhi MCP integration", 
+                    "enabled" if debug_enabled else "disabled")
+
+    async def _persist_logging_state(self, debug_enabled: bool) -> None:
+        """Persist the logging state to the config entry."""
+        try:
+            # Update config entry data
+            data = dict(self.coordinator.config_entry.data)
+            data[CONF_ENABLE_LOGGING] = debug_enabled
+            
+            # Update the config entry
+            self.hass.config_entries.async_update_entry(
+                self.coordinator.config_entry,
+                data=data
+            )
+            
+            _LOGGER.debug("Persisted debug logging state: %s", debug_enabled)
+        except Exception as err:
+            _LOGGER.warning("Failed to persist debug logging state: %s", err)
 
     @property
     def available(self) -> bool:
