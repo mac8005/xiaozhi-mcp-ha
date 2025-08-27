@@ -98,6 +98,9 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
     async def async_setup(self) -> None:
         """Set up the coordinator."""
         _LOGGER.info("Setting up Xiaozhi MCP coordinator")
+        
+        # Initialize logger levels based on config
+        self._initialize_logger_levels()
 
         # Test MCP Server connection with retry logic
         max_retries = 5
@@ -157,6 +160,18 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
 
         # Start status update
         await self.async_refresh()
+
+    def _initialize_logger_levels(self) -> None:
+        """Initialize logger levels based on enable_logging setting."""
+        level = logging.DEBUG if self.enable_logging else logging.INFO
+        
+        # Set logger levels for all xiaozhi_mcp loggers
+        logging.getLogger("custom_components.xiaozhi_mcp").setLevel(level)
+        logging.getLogger("custom_components.xiaozhi_mcp.coordinator").setLevel(level)
+        logging.getLogger("custom_components.xiaozhi_mcp.mcp_client").setLevel(level)
+        logging.getLogger("custom_components.xiaozhi_mcp.switch").setLevel(level)
+        
+        _LOGGER.debug("Initialized logger levels with debug=%s", self.enable_logging)
 
     async def async_shutdown(self) -> None:
         """Shutdown the coordinator."""
@@ -219,8 +234,7 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         while (datetime.now() - start_time).total_seconds() < timeout:
             if self._connected:
                 return True
-            if not self._connecting:
-                return False
+            # Continue waiting even if _connecting is False, in case connection is established externally
             # Log every 5 seconds while waiting
             waited = int((datetime.now() - start_time).total_seconds())
             if waited // 5 != last_log // 5:
@@ -243,10 +257,15 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
     async def _connection_monitor_loop(self) -> None:
         """Monitor connection health and trigger automatic reconnection if needed."""
         _LOGGER.debug("Starting connection health monitor")
+        
+        # Do an immediate first check, then wait for the interval
+        first_check = True
 
         while True:
             try:
-                await asyncio.sleep(CONNECTION_MONITOR_INTERVAL)
+                if not first_check:
+                    await asyncio.sleep(CONNECTION_MONITOR_INTERVAL)
+                first_check = False
 
                 # Skip monitoring if we're already reconnecting or user requested manual disconnect
                 if self._connecting or self._manual_disconnect:
