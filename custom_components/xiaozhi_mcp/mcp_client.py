@@ -10,6 +10,7 @@ from typing import Any
 import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from .const import INITIAL_BACKOFF, MAX_BACKOFF, MAX_RECONNECT_ATTEMPTS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +44,9 @@ class XiaozhiMCPClient:
         self._sse_response = None
         self._sse_queue = asyncio.Queue()
         self._mcp_task = None
+        self._disconnecting = False
+        self._backoff = INITIAL_BACKOFF
+        self._reconnect_attempts = 0
 
         # Endpoint management for MCP protocol compliance
         self._message_endpoints = {}  # Maps message/session IDs to endpoints
@@ -62,31 +66,18 @@ class XiaozhiMCPClient:
         return self.session
 
     async def connect_to_mcp(self) -> None:
-        """Establish connection to MCP Server for streaming."""
-        session = await self._ensure_session()
+        """Ensure background SSE run loop is active (idempotent)."""
+        # If already running, don't spawn another
+        if self._mcp_task and not self._mcp_task.done():
+            _LOGGER.debug("MCP SSE loop already running; skipping new start")
+            return
 
-        headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Accept": "text/event-stream",
-        }
-
-        # Start persistent SSE connection
-        self._sse_response = await session.get(
-            self.mcp_server_url,
-            headers=headers,
-            timeout=aiohttp.ClientTimeout(total=None),  # No timeout for SSE
-        )
-
-        if self._sse_response.status != 200:
-            raise Exception(
-                f"MCP Server connection failed: {self._sse_response.status}"
-            )
-
-        # Start reading SSE stream
-        self._mcp_task = asyncio.create_task(self._read_sse_stream())
+        self._disconnecting = False
+        self._mcp_task = asyncio.create_task(self._sse_run_loop())
 
     async def disconnect_from_mcp(self) -> None:
         """Disconnect from MCP Server."""
+        self._disconnecting = True
         if self._mcp_task:
             self._mcp_task.cancel()
             self._mcp_task = None
@@ -109,8 +100,16 @@ class XiaozhiMCPClient:
 
         This prevents the common 4004 error caused by incorrect endpoint forwarding.
         """
+        # If SSE is not currently connected, wait briefly for auto-reconnect
         if not self._sse_response:
-            raise Exception("Not connected to MCP Server")
+            for _ in range(10):  # wait up to ~10s total
+                if self._disconnecting:
+                    raise Exception("Disconnected from MCP Server")
+                if self._sse_response:
+                    break
+                await asyncio.sleep(1)
+            if not self._sse_response:
+                raise Exception("Not connected to MCP Server")
 
         session = await self._ensure_session()
 
@@ -234,6 +233,95 @@ class XiaozhiMCPClient:
             pass
         except Exception as err:
             _LOGGER.error("Error reading SSE stream: %s", err)
+
+    async def _open_sse(self):
+        """Open the SSE connection; caller handles retries/backoff."""
+        session = await self._ensure_session()
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Accept": "text/event-stream",
+        }
+        _LOGGER.debug("Opening MCP SSE connection to %s", self.mcp_server_url)
+        resp = await session.get(
+            self.mcp_server_url,
+            headers=headers,
+            timeout=aiohttp.ClientTimeout(total=None),
+        )
+        if resp.status != 200:
+            try:
+                body = await resp.text()
+            except Exception:
+                body = "<no body>"
+            raise Exception(f"MCP SSE connection failed: {resp.status} - {body}")
+        return resp
+
+    async def _sse_run_loop(self):
+        """Run SSE read loop with reconnection and backoff until disconnected."""
+        self._backoff = INITIAL_BACKOFF
+        self._reconnect_attempts = 0
+
+        try:
+            while not self._disconnecting:
+                try:
+                    # Open connection
+                    self._sse_response = await self._open_sse()
+                    _LOGGER.info("✅ MCP SSE connected")
+                    # Reset backoff on success
+                    self._backoff = INITIAL_BACKOFF
+                    self._reconnect_attempts = 0
+
+                    # Read stream; returns when cancelled or error
+                    await self._read_sse_stream()
+
+                    if self._disconnecting:
+                        _LOGGER.debug("SSE loop stopping due to explicit disconnect")
+                        break
+
+                    # If read loop returned without explicit disconnect, treat as drop
+                    _LOGGER.warning("MCP SSE stream ended unexpectedly; will reconnect")
+
+                except asyncio.CancelledError:
+                    _LOGGER.debug("SSE loop cancelled")
+                    break
+                except Exception as err:
+                    if self._disconnecting:
+                        break
+                    self._reconnect_attempts += 1
+                    _LOGGER.warning(
+                        "MCP SSE error (%d): %s", self._reconnect_attempts, err
+                    )
+
+                # Close any existing response before retrying
+                if self._sse_response:
+                    try:
+                        self._sse_response.close()
+                    except Exception:
+                        pass
+                    self._sse_response = None
+
+                # Check attempt cap
+                if self._reconnect_attempts > MAX_RECONNECT_ATTEMPTS:
+                    _LOGGER.error(
+                        "MCP SSE max reconnect attempts reached (%d); stopping",
+                        MAX_RECONNECT_ATTEMPTS,
+                    )
+                    break
+
+                # Backoff with cap and small jitter
+                wait = self._backoff
+                self._backoff = min(self._backoff * 2, MAX_BACKOFF)
+                jitter = wait * 0.1
+                delay = wait + (jitter * 0.5)
+                _LOGGER.info("Reconnecting MCP SSE in %.1fs", delay)
+                await asyncio.sleep(delay)
+        finally:
+            # Ensure response is closed on exit
+            if self._sse_response:
+                try:
+                    self._sse_response.close()
+                except Exception:
+                    pass
+                self._sse_response = None
 
     async def test_connection(self) -> bool:
         """Test connection to the MCP Server."""

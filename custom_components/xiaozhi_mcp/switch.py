@@ -222,4 +222,6 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
     @property
     def available(self) -> bool:
         """Return if entity is available."""
-        return self.coordinator.last_update_success
+        # Connection and logging switches should remain available even if
+        # periodic data refresh fails, so users can recover by toggling.
+        return True
