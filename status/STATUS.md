@@ -21,6 +21,7 @@ Updated: 2026-10-21
 - Multiple bridges require explicit entry_id for service calls.
 
 ## Log
+- 2026-10-21: Found oversized-message test generated a 1 MiB pytest node ID; replaced auto IDs with short names to bound CI log output.
 - 2026-10-21: Linux job outlived process timeout with unavailable logs; retrying on explicit Ubuntu 24.04 to isolate runner-image behavior.
 - 2026-10-21: Added process-level Linux test deadline and uncaptured verbose diagnostics because per-test signals did not finish the stalled run.
 - 2026-10-21: Hassfest/HACS passed; Linux test job stalled, adding bounded test timeouts to expose the failing lifecycle path.

@@ -72,6 +72,7 @@ def test_valid_endpoint_and_zero_id():
 @pytest.mark.parametrize(
     "message",
     ["[]", "null", '{"entity_id":"lock.front"}', "invalid", "x" * (1024 * 1024 + 1)],
+    ids=["array", "null", "non_rpc", "invalid_json", "oversized"],
 )
 def test_invalid_messages(message):
     with pytest.raises(ValueError):
