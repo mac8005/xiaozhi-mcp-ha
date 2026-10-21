@@ -22,7 +22,8 @@ Issue #33 requests a private contact and contains no technical vulnerability det
 - Ruff lint and formatting pass.
 - Bandit: no medium/high findings; one low-severity use of random for reconnect jitter (not cryptographic).
 - pip-audit on requirements.txt: no known vulnerabilities. HA-owned dependencies remain governed by the installed HA version; this is not a claim that all HA releases are vulnerability-free.
-- GitHub Hassfest/HACS validation and release ZIP verification pending.
+- GitHub run 39576323395: Linux tests, Ruff, Bandit, Hassfest and HACS all passed. Release ZIP verification pending.
+- CI diagnostics initially generated a 1 MiB test name from the oversized-message fixture. Explicit short parameter IDs reduced verbose test output to 4 KB; Linux CI then completed successfully.
 - No live Home Assistant or physical Xiaozhi device validation performed.
 
 ## Upgrade impact

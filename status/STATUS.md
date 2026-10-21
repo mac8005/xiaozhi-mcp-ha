@@ -2,7 +2,7 @@
 Updated: 2026-10-21
 
 ## In flight
-- 0.0.26 security/refactor candidate implemented; awaiting GitHub validation before tagging.
+- 0.0.26 candidate validated locally and in GitHub CI; release publication in progress.
 - Issue #33 is a private-contact request, without technical details. Private reporting enabled and verified.
 
 ## Decisions
@@ -11,9 +11,8 @@ Updated: 2026-10-21
 - See [review and validation](2026-10-21-security-review.md).
 
 ## Next
-1. Check CI, Hassfest and HACS results; repair any failures.
-2. Tag/publish 0.0.26 and verify downloadable archive/checksum.
-3. Comment on #33 with private-report link and verified release findings.
+1. Tag/publish 0.0.26 and verify downloadable archive/checksum.
+2. Comment on #33 with private-report link and verified release findings.
 
 ## Gotchas
 - Live Home Assistant/device validation has not been performed.
@@ -21,6 +20,7 @@ Updated: 2026-10-21
 - Multiple bridges require explicit entry_id for service calls.
 
 ## Log
+- 2026-10-21: GitHub run 39576323395 passed all 39 tests, lint, security scan, Hassfest and HACS; publishing 0.0.26.
 - 2026-10-21: Found oversized-message test generated a 1 MiB pytest node ID; replaced auto IDs with short names to bound CI log output.
 - 2026-10-21: Linux job outlived process timeout with unavailable logs; retrying on explicit Ubuntu 24.04 to isolate runner-image behavior.
 - 2026-10-21: Added process-level Linux test deadline and uncaptured verbose diagnostics because per-test signals did not finish the stalled run.
