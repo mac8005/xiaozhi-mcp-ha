@@ -19,7 +19,7 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check custom_components tests run_local.py create_release.py
       - run: ruff format --check custom_components tests run_local.py create_release.py
-      - run: pytest
+      - run: timeout --signal=KILL 90s python -m pytest -vv -s
       - run: bandit -r custom_components -ll
   integration:
     runs-on: ubuntu-latest
