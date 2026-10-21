@@ -69,7 +69,7 @@ custom_components/xiaozhi_mcp/
 ├── config_flow.py       # Configuration flow
 ├── const.py            # Constants
 ├── coordinator.py      # Data update coordinator
-├── mcp_server.py       # MCP server implementation
+├── mcp_client.py       # Authenticated SSE client
 ├── sensor.py           # Sensor platform
 ├── switch.py           # Switch platform
 └── strings.json        # Localization strings
@@ -102,3 +102,5 @@ If you have questions about contributing, please:
 3. Join the QQ group: 575180511
 
 Thank you for contributing! 🙏
+
+See [RUNNING_LOCALLY.md](RUNNING_LOCALLY.md) for reproducible tests and release checks. Report vulnerabilities through [SECURITY.md](SECURITY.md).

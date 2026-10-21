@@ -11,13 +11,13 @@ A Home Assistant Custom Integration (HACS) that connects Xiaozhi ESP32 AI chatbo
 ## Features
 
 - 🤖 Connect Xiaozhi ESP32 devices to Home Assistant
-- 🔌 Full MCP (Model Context Protocol) support for AI-powered home automation
+- 🔌 Legacy HTTP/SSE MCP (Model Context Protocol) support for AI-powered home automation
 - 🏠 Control Home Assistant entities through natural language
 - 🔒 Secure authentication with long-lived access tokens
 - 🔄 Automatic reconnection with exponential backoff
 - 📊 Real-time status monitoring and logging
 - 🛠️ Easy configuration through Home Assistant UI
-- 🌐 Support for both WebSocket and HTTP endpoints
+- 🌐 TLS-verified WebSocket and HTTP/SSE endpoints
 
 ## What is Xiaozhi?
 
@@ -31,9 +31,13 @@ Xiaozhi is an open-source ESP32-based AI chatbot that uses voice interaction and
 - **Many shapes, same guts:** boards are sold as square dev-kits, cubes, pucks and the cute **“Astronaut Ball”** shown above – all share the same firmware stack.
 - **Ultra-low cost:** the Astronaut Ball costs **≈ USD 19** – cheaper than most bare ESP32 kits. [AliExpress product page](https://www.aliexpress.com/item/1005008600891141.html)
 
+## Security and upgrading
+
+Read [SECURITY.md](SECURITY.md) and [the changelog](CHANGELOG.md) before upgrading. The trusted Xiaozhi service can call exposed Home Assistant tools and receive their results. Version 0.0.26 requires TLS outside loopback and no longer logs message payloads or endpoint URLs. Existing LAN plaintext URLs need migration.
+
 ## Requirements
 
-- Home Assistant 2024.1.0 or later
+- Home Assistant 2025.3.0 or later
 - HACS (Home Assistant Community Store)
 - **Home Assistant MCP Server Integration** (must be installed first)
 - Xiaozhi ESP32 device or compatible hardware
@@ -122,7 +126,7 @@ This integration acts as a **bridge/proxy** between your Xiaozhi ESP32 device an
 - ✅ **No MCP Server Reimplementation**: This integration does NOT implement its own MCP server
 - ✅ **Uses Official MCP Server**: All MCP functionality is provided by the official Home Assistant MCP Server integration
 - ✅ **Acts as SSE Proxy**: This integration forwards MCP messages to the official MCP server via Server-Sent Events
-- ✅ **Secure Local Communication**: All Home Assistant communication happens locally through the official MCP server
+- ✅ **Authenticated MCP Communication**: The configured MCP server receives the Home Assistant token; use loopback locally or valid TLS remotely
 - ✅ **No External URLs Required**: No need to expose your Home Assistant instance to the internet
 
 ## Usage
@@ -153,7 +157,7 @@ Once configured, your Xiaozhi device can:
 - **No MCP Server Reimplementation**: This integration does NOT implement its own MCP server - it only acts as a proxy
 - **SSE Communication**: Uses Server-Sent Events to communicate with the MCP Server at `http://localhost:8123/mcp_server/sse`
 - **Entity Exposure**: Make sure to expose the entities you want to control via the MCP Server settings in Home Assistant
-- **Local Communication**: All Home Assistant communication happens locally through the official MCP server
+- **MCP Communication**: Use loopback locally or valid TLS remotely
 - **No External URLs**: No need to configure external Home Assistant URLs or expose your instance to the internet
 
 ### Debug Logging

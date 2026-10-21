@@ -31,7 +31,9 @@ CONNECTION_TIMEOUT: Final = (
 MAX_CONSECUTIVE_FAILURES: Final = 3  # Auto-reconnect after 3 consecutive failures
 
 # Switch connection settings
-SWITCH_CONNECTION_TIMEOUT: Final = 45  # Wait up to 45 seconds for connection establishment
+SWITCH_CONNECTION_TIMEOUT: Final = (
+    45  # Wait up to 45 seconds for connection establishment
+)
 SWITCH_MAX_RETRIES: Final = 3  # Maximum retry attempts for switch connection
 
 # Error codes

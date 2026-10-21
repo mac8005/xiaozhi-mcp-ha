@@ -1,0 +1,7 @@
+-r requirements.txt
+homeassistant==2026.2.3
+pytest==9.1.1
+pytest-asyncio==1.4.0
+trustme==1.2.1
+ruff==0.17.1
+bandit==1.9.4

@@ -4,16 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import ssl
 from typing import Any
 
-import aiohttp
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     CONF_ACCESS_TOKEN,
@@ -28,6 +25,7 @@ from .const import (
     DOMAIN,
     ERROR_CODES,
 )
+from .security import WEBSOCKET_LOGGER, validate_url
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,7 +35,9 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_XIAOZHI_ENDPOINT): str,
         vol.Required(CONF_ACCESS_TOKEN): str,
         vol.Optional(CONF_MCP_SERVER_URL, default=DEFAULT_MCP_SERVER_URL): str,
-        vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
+        vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
+            vol.Coerce(int), vol.Range(min=5, max=3600)
+        ),
         vol.Optional(CONF_ENABLE_LOGGING, default=DEFAULT_ENABLE_LOGGING): bool,
     }
 )
@@ -49,13 +49,11 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     access_token = data[CONF_ACCESS_TOKEN]
     mcp_server_url = data.get(CONF_MCP_SERVER_URL, DEFAULT_MCP_SERVER_URL)
 
-    # Validate Xiaozhi endpoint
-    if not xiaozhi_endpoint.startswith(("ws://", "wss://")):
-        raise InvalidEndpoint("Xiaozhi endpoint must start with ws:// or wss://")
-
-    # Validate MCP Server URL
-    if not mcp_server_url.startswith(("http://", "https://")):
-        raise InvalidEndpoint("MCP Server URL must start with http:// or https://")
+    try:
+        validate_url(xiaozhi_endpoint, websocket=True)
+        validate_url(mcp_server_url)
+    except ValueError as err:
+        raise InvalidEndpoint(str(err)) from None
 
     # Validate access token
     if not access_token or len(access_token) < 10:
@@ -65,23 +63,19 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     try:
         import websockets
 
-        # Create SSL context properly to avoid blocking calls
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
-
-        connect_kwargs = {"close_timeout": 10}
-        if xiaozhi_endpoint.startswith("wss://"):
-            connect_kwargs["ssl"] = ssl_context
+        connect_kwargs = {
+            "close_timeout": 10,
+            "open_timeout": 20,
+            "logger": WEBSOCKET_LOGGER,
+        }
 
         async with websockets.connect(xiaozhi_endpoint, **connect_kwargs) as websocket:
             # Send a simple ping to test connection
             await websocket.send('{"jsonrpc": "2.0", "method": "ping", "id": 1}')
-            response = await asyncio.wait_for(websocket.recv(), timeout=5)
-            _LOGGER.debug("Xiaozhi connection test response: %s", response)
+            await asyncio.wait_for(websocket.recv(), timeout=5)
     except Exception as err:
-        _LOGGER.error("Failed to connect to Xiaozhi endpoint: %s", err)
-        raise ConnectionFailed(f"Cannot connect to Xiaozhi endpoint: {err}")
+        _LOGGER.error("Failed to connect to Xiaozhi endpoint (%s)", type(err).__name__)
+        raise ConnectionFailed("Cannot connect to Xiaozhi endpoint") from None
 
     # Test Home Assistant MCP Server connection
     try:
@@ -102,8 +96,8 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             "access_token": access_token,
         }
     except Exception as err:
-        _LOGGER.error("Home Assistant MCP Server connection failed: %s", err)
-        raise ConnectionFailed(f"Cannot connect to Home Assistant MCP Server: {err}")
+        _LOGGER.error("MCP Server connection failed (%s)", type(err).__name__)
+        raise ConnectionFailed("Cannot connect to Home Assistant MCP Server") from None
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -128,8 +122,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["base"] = ERROR_CODES["AUTHENTICATION_FAILED"]
         except InvalidEndpoint:
             errors["base"] = ERROR_CODES["INVALID_ENDPOINT"]
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.exception("Unexpected exception")
+        except Exception as err:
+            _LOGGER.error("Configuration failed (%s)", type(err).__name__)
             errors["base"] = ERROR_CODES["UNKNOWN_ERROR"]
         else:
             # Check if already configured
@@ -143,17 +137,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     @staticmethod
+    @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
-        return OptionsFlowHandler(config_entry)
+        return OptionsFlowHandler()
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow for Xiaozhi MCP."""
-
-    def __init__(self, config_entry):
-        """Initialize options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
         """Handle options flow."""
@@ -165,13 +156,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_SCAN_INTERVAL,
                     default=self.config_entry.options.get(
-                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                        CONF_SCAN_INTERVAL,
+                        self.config_entry.data.get(
+                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                        ),
                     ),
-                ): int,
+                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=3600)),
                 vol.Optional(
                     CONF_ENABLE_LOGGING,
                     default=self.config_entry.options.get(
-                        CONF_ENABLE_LOGGING, DEFAULT_ENABLE_LOGGING
+                        CONF_ENABLE_LOGGING,
+                        self.config_entry.data.get(
+                            CONF_ENABLE_LOGGING, DEFAULT_ENABLE_LOGGING
+                        ),
                     ),
                 ): bool,
             }

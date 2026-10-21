@@ -26,7 +26,7 @@
         "error": {
             "connection_failed": "Failed to connect to Xiaozhi MCP endpoint",
             "authentication_failed": "Authentication failed - check your access token",
-            "invalid_endpoint": "Invalid Xiaozhi MCP endpoint URL",
+            "invalid_endpoint": "Use a valid TLS URL; plaintext is allowed only on loopback",
             "timeout": "Connection timeout",
             "unknown_error": "Unknown error occurred"
         },
@@ -47,17 +47,16 @@
             }
         }
     },
-    "device_automation": {
-        "trigger_type": {
-            "connected": "Connected to Xiaozhi",
-            "disconnected": "Disconnected from Xiaozhi",
-            "message_received": "Message received from Xiaozhi"
-        }
-    },
     "services": {
         "reconnect": {
             "name": "Reconnect",
-            "description": "Reconnect to Xiaozhi MCP endpoint"
+            "description": "Reconnect to Xiaozhi MCP endpoint",
+            "fields": {
+                "entry_id": {
+                    "name": "Integration entry",
+                    "description": "Required when multiple bridges are configured"
+                }
+            }
         },
         "send_message": {
             "name": "Send Message",
@@ -66,6 +65,10 @@
                 "message": {
                     "name": "Message",
                     "description": "Message to send to Xiaozhi"
+                },
+                "entry_id": {
+                    "name": "Integration entry",
+                    "description": "Required when multiple bridges are configured"
                 }
             }
         }

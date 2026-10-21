@@ -1,8 +1,6 @@
 """Test connection stability improvements."""
 
 import asyncio
-import unittest.mock
-from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,7 +11,6 @@ from custom_components.xiaozhi_mcp.const import (
     CONF_ACCESS_TOKEN,
     CONF_SCAN_INTERVAL,
     CONF_XIAOZHI_ENDPOINT,
-    CONNECTION_MONITOR_INTERVAL,
     CONNECTION_TIMEOUT,
     DOMAIN,
     MAX_CONSECUTIVE_FAILURES,
@@ -37,6 +34,7 @@ def mock_config_entry():
     return MagicMock(
         spec=ConfigEntry,
         entry_id="test_entry",
+        options={},
         data={
             "name": "Test Xiaozhi",
             CONF_XIAOZHI_ENDPOINT: "wss://test.example.com/ws",
@@ -71,7 +69,7 @@ class TestConnectionStability:
         """Test that connection monitoring detects stale connections."""
         # Setup mock websocket that will fail ping
         mock_websocket = AsyncMock()
-        mock_websocket.ping.side_effect = asyncio.TimeoutError()
+        mock_websocket.ping.side_effect = TimeoutError()
         coordinator._websocket = mock_websocket
         coordinator._connected = True
 
@@ -150,6 +148,7 @@ class TestConnectionStability:
     @pytest.mark.asyncio
     async def test_wait_for_connection_success(self, coordinator, mock_hass):
         """Test waiting for connection establishment."""
+
         # Simulate connection being established after a short delay
         async def establish_connection():
             await asyncio.sleep(0.1)
@@ -205,8 +204,10 @@ class TestConnectionStability:
         assert CONNECTION_TIMEOUT == 20  # Increased from 10
         assert SWITCH_CONNECTION_TIMEOUT == 45  # New constant
         assert SWITCH_MAX_RETRIES == 3  # New constant
-        
+
         # Ensure values are reasonable
         assert CONNECTION_TIMEOUT > 10  # More than the old value
-        assert SWITCH_CONNECTION_TIMEOUT > CONNECTION_TIMEOUT  # Switch timeout should be longer
+        assert (
+            SWITCH_CONNECTION_TIMEOUT > CONNECTION_TIMEOUT
+        )  # Switch timeout should be longer
         assert 1 <= SWITCH_MAX_RETRIES <= 5  # Reasonable retry count

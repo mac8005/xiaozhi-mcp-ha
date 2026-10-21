@@ -8,12 +8,16 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_ENABLE_LOGGING, DOMAIN, SWITCH_CONNECTION_TIMEOUT, SWITCH_MAX_RETRIES
+from .const import (
+    CONF_ENABLE_LOGGING,
+    DOMAIN,
+    SWITCH_CONNECTION_TIMEOUT,
+    SWITCH_MAX_RETRIES,
+)
 from .coordinator import XiaozhiMCPCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -65,7 +69,6 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
             "name": coordinator.name,
             "manufacturer": "Xiaozhi",
             "model": "MCP Bridge",
-            "sw_version": "1.0.0",
         }
 
     @property
@@ -87,7 +90,9 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
 
             # If HA thinks we're connected but websocket task is gone, force reset
             if self.coordinator.connected and not self.coordinator._message_task:
-                _LOGGER.debug("Detected connected state without active message task; forcing reset before reconnect")
+                _LOGGER.debug(
+                    "Detected connected state without active message task; forcing reset before reconnect"
+                )
                 await self._disconnect_only()
 
             for attempt in range(SWITCH_MAX_RETRIES):
@@ -109,12 +114,19 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
                     if success:
                         # Confirm message task alive
                         if not self.coordinator._message_task:
-                            _LOGGER.debug("Connection established but message task missing; retrying")
+                            _LOGGER.debug(
+                                "Connection established but message task missing; retrying"
+                            )
                             raise Exception("Message handling task not running")
-                        _LOGGER.info("Connection established successfully on attempt %d", attempt + 1)
+                        _LOGGER.info(
+                            "Connection established successfully on attempt %d",
+                            attempt + 1,
+                        )
                         break
                     else:
-                        last_exception = Exception("Connection attempt did not complete within timeout")
+                        last_exception = Exception(
+                            "Connection attempt did not complete within timeout"
+                        )
                         _LOGGER.warning(
                             "Connection attempt %d/%d failed: timeout after %d seconds (connecting=%s, connected=%s)",
                             attempt + 1,
@@ -129,14 +141,19 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
                 except Exception as err:
                     last_exception = err
                     _LOGGER.warning(
-                        "Connection attempt %d/%d failed with error: %s", attempt + 1, SWITCH_MAX_RETRIES, err
+                        "Connection attempt %d/%d failed with error: %s",
+                        attempt + 1,
+                        SWITCH_MAX_RETRIES,
+                        err,
                     )
                     if attempt < SWITCH_MAX_RETRIES - 1:
                         await asyncio.sleep(2)
 
             if not self.coordinator.connected and last_exception:
                 _LOGGER.warning(
-                    "All %d connection attempts failed. Last error: %s", SWITCH_MAX_RETRIES, last_exception
+                    "All %d connection attempts failed. Last error: %s",
+                    SWITCH_MAX_RETRIES,
+                    last_exception,
                 )
 
         elif self.entity_description.key == "debug_logging":
@@ -163,58 +180,35 @@ class XiaozhiMCPSwitch(CoordinatorEntity, SwitchEntity):
 
     async def _disconnect_only(self) -> None:
         """Disconnect the websocket connection without shutting down the entire coordinator."""
-        coordinator = self.coordinator
-
-        # Mark manual disconnect so auto-reconnect logic pauses
-        coordinator._manual_disconnect = True
-
-        # Cancel any ongoing reconnection attempts
-        if coordinator._reconnect_task:
-            coordinator._reconnect_task.cancel()
-            try:
-                await coordinator._reconnect_task
-            except asyncio.CancelledError:
-                pass
-
-        # Close websocket connection
-        if coordinator._websocket:
-            await coordinator._websocket.close()
-            coordinator._websocket = None
-
-        # Disconnect from MCP
-        if coordinator._mcp_client:
-            await coordinator._mcp_client.disconnect_from_mcp()
-
-        # Update state
-        coordinator._connected = False
-        coordinator._connecting = False
+        await self.coordinator.async_disconnect()
 
     def _update_logger_level(self, debug_enabled: bool) -> None:
         """Update logger levels for the integration."""
         level = logging.DEBUG if debug_enabled else logging.INFO
-        
+
         # Update logger levels for all xiaozhi_mcp loggers
         logging.getLogger("custom_components.xiaozhi_mcp").setLevel(level)
         logging.getLogger("custom_components.xiaozhi_mcp.coordinator").setLevel(level)
         logging.getLogger("custom_components.xiaozhi_mcp.mcp_client").setLevel(level)
         logging.getLogger("custom_components.xiaozhi_mcp.switch").setLevel(level)
-        
-        _LOGGER.info("Debug logging %s for Xiaozhi MCP integration", 
-                    "enabled" if debug_enabled else "disabled")
+
+        _LOGGER.info(
+            "Debug logging %s for Xiaozhi MCP integration",
+            "enabled" if debug_enabled else "disabled",
+        )
 
     async def _persist_logging_state(self, debug_enabled: bool) -> None:
         """Persist the logging state to the config entry."""
         try:
             # Update config entry data
-            data = dict(self.coordinator.config_entry.data)
+            data = dict(self.coordinator.config_entry.options)
             data[CONF_ENABLE_LOGGING] = debug_enabled
-            
+
             # Update the config entry
             self.hass.config_entries.async_update_entry(
-                self.coordinator.config_entry,
-                data=data
+                self.coordinator.config_entry, options=data
             )
-            
+
             _LOGGER.debug("Persisted debug logging state: %s", debug_enabled)
         except Exception as err:
             _LOGGER.warning("Failed to persist debug logging state: %s", err)

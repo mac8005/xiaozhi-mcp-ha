@@ -1,134 +1,43 @@
 name: Release
-
 on:
   push:
-    tags:
-      - "v*"
-
+    tags: ['v*']
 permissions:
-  contents: write
-  packages: write
-
+  contents: read
 jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
   release:
+    needs: validate
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Validate tag format
+      - name: Validate version and build HACS archive
         run: |
-          if [[ ! "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
-            echo "Error: Tag must be in format v#.#.# (e.g., v1.0.0)"
-            exit 1
-          fi
-          echo "Tag format is valid: $GITHUB_REF"
-
-      - name: Get version from tag
-        id: get_version
-        run: |
-          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          echo "Current ref: $GITHUB_REF"
-          echo "Tag name: ${GITHUB_REF#refs/tags/}"
-
-      - name: Validate with Hassfest
-        uses: home-assistant/actions/hassfest@master
-
-      - name: Validate HACS
-        uses: hacs/action@main
+          python3 - <<'PY'
+          import json, os, pathlib, re, zipfile
+          tag = os.environ['GITHUB_REF_NAME']
+          assert re.fullmatch(r'v\d+\.\d+\.\d+', tag), 'Invalid release tag'
+          root = pathlib.Path('custom_components/xiaozhi_mcp')
+          assert json.loads((root / 'manifest.json').read_text())['version'] == tag[1:]
+          notes = pathlib.Path('CHANGELOG.md').read_text().split('## [' + tag[1:] + ']', 1)[1]
+          pathlib.Path('release-notes.md').write_text('## [' + tag[1:] + ']' + notes.split('\n## [', 1)[0])
+          with zipfile.ZipFile('xiaozhi_mcp.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+              for path in sorted(root.rglob('*')):
+                  if path.is_file() and '__pycache__' not in path.parts and path.suffix in ('.py', '.json', '.yaml'):
+                      archive.write(path, path.relative_to(root))
+          with zipfile.ZipFile('xiaozhi_mcp.zip') as archive:
+              assert archive.testzip() is None
+              assert {'manifest.json', '__init__.py', 'services.yaml'} <= set(archive.namelist())
+          PY
+          shasum -a 256 xiaozhi_mcp.zip > SHA256SUMS
+      - uses: softprops/action-gh-release@v2
         with:
-          category: integration
-
-      - name: Update manifest version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" custom_components/xiaozhi_mcp/manifest.json
-          echo "Updated manifest version to: $VERSION"
-          cat custom_components/xiaozhi_mcp/manifest.json
-
-      - name: Create ZIP file for HACS
-        run: |
-          echo "Creating ZIP file..."
-          cd custom_components/xiaozhi_mcp
-          zip -r ../../xiaozhi_mcp.zip . -x "__pycache__/*" "*.pyc"
-          cd ../..
-          echo "ZIP file created:"
-          ls -la xiaozhi_mcp.zip
-          echo "ZIP file contents:"
-          unzip -l xiaozhi_mcp.zip
-
-      - name: Validate ZIP structure
-        run: |
-          echo "Validating ZIP structure for HACS compatibility..."
-          if unzip -l xiaozhi_mcp.zip | grep -q "manifest.json"; then
-            echo "✅ manifest.json found in ZIP root"
-          else
-            echo "❌ manifest.json not found in ZIP root"
-            exit 1
-          fi
-
-          if unzip -l xiaozhi_mcp.zip | grep -q "__init__.py"; then
-            echo "✅ __init__.py found in ZIP root"
-          else
-            echo "❌ __init__.py not found in ZIP root"
-            exit 1
-          fi
-
-          if unzip -l xiaozhi_mcp.zip | grep -q "services.yaml"; then
-            echo "✅ services.yaml found in ZIP root"
-          else
-            echo "❌ services.yaml not found in ZIP root"
-            exit 1
-          fi
-
-          echo "✅ ZIP structure is valid for HACS"
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          if [ -f "CHANGELOG.md" ]; then
-            echo "CHANGELOG_CONTENT<<EOF" >> $GITHUB_OUTPUT
-            awk '/^## \[/{if(p) exit; p=1} p' CHANGELOG.md >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "CHANGELOG_CONTENT=No changelog available" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.get_version.outputs.TAG_NAME }}
-          name: Release ${{ steps.get_version.outputs.TAG_NAME }}
-          body: |
-            ## 🚀 Release ${{ steps.get_version.outputs.TAG_NAME }}
-
-            ### 📦 Installation
-            This release can be installed via:
-            1. **HACS** (recommended): Add this repository as a custom integration
-            2. **Manual**: Download `xiaozhi_mcp.zip` and extract to `custom_components/`
-
-            ### 🔧 Requirements
-            - Home Assistant 2024.1.0 or later
-            - Home Assistant MCP Server integration (must be installed first)
-            - Xiaozhi ESP32 device or compatible hardware
-
-            ### 📋 What's New
-            ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
-
-            ### 🆘 Support
-            - 🐛 [Report Issues](https://github.com/mac8005/xiaozhi-mcp-ha/issues)
-            - 💬 [Discussions](https://github.com/mac8005/xiaozhi-mcp-ha/discussions)
-            - 📖 [Documentation](https://github.com/mac8005/xiaozhi-mcp-ha/blob/main/README.md)
-
-            ### 🔗 Quick Links
-            - [Installation Guide](https://github.com/mac8005/xiaozhi-mcp-ha#installation)
-            - [Configuration Help](https://github.com/mac8005/xiaozhi-mcp-ha#configuration)
-            - [Troubleshooting](https://github.com/mac8005/xiaozhi-mcp-ha#troubleshooting)
-          draft: false
-          prerelease: ${{ contains(steps.get_version.outputs.TAG_NAME, '-') || contains(steps.get_version.outputs.TAG_NAME, 'beta') || contains(steps.get_version.outputs.TAG_NAME, 'alpha') }}
+          name: Release ${{ github.ref_name }}
+          body_path: release-notes.md
           files: |
             xiaozhi_mcp.zip
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            SHA256SUMS
+          fail_on_unmatched_files: true

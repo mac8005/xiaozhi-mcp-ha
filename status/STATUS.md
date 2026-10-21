@@ -2,18 +2,24 @@
 Updated: 2026-10-21
 
 ## In flight
-- Review latest security report and all source code; prepare a validated release.
+- 0.0.26 security/refactor candidate implemented; awaiting GitHub validation before tagging.
+- Issue #33 is a private-contact request, without technical details. Private reporting enabled and verified.
 
 ## Decisions
-- Reuse existing clean checkout, synchronized with origin at e0fbfe0 (0.0.25).
+- Fix independently verified TLS bypass/log leakage; do not claim these match the undisclosed report.
+- Require TLS outside loopback; retain legacy HTTP/SSE protocol.
+- See [review and validation](2026-10-21-security-review.md).
 
 ## Next
-1. Inspect security issue, integration, local tooling and release workflow.
-2. Fix confirmed defects and add regression coverage.
-3. Publish release and comment with verified findings.
+1. Check CI, Hassfest and HACS results; repair any failures.
+2. Tag/publish 0.0.26 and verify downloadable archive/checksum.
+3. Comment on #33 with private-report link and verified release findings.
 
 ## Gotchas
-- Live Home Assistant/device validation must be reported separately from automated tests.
+- Live Home Assistant/device validation has not been performed.
+- Python 3.13 development environment pins HA 2026.2.3.
+- Multiple bridges require explicit entry_id for service calls.
 
 ## Log
+- 2026-10-21: Completed source review and implementation; 39 tests, Ruff, dependency audit and medium/high security checks pass.
 - 2026-10-21: Started security review and initialized shared status.
