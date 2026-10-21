@@ -7,6 +7,7 @@ skip_glob = ["*/__pycache__/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+timeout = 30
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = ["-v", "--tb=short", "--strict-markers"]

@@ -9,6 +9,7 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,6 +23,7 @@ jobs:
       - run: bandit -r custom_components -ll
   integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: home-assistant/actions/hassfest@master

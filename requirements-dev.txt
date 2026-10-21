@@ -5,3 +5,4 @@ pytest-asyncio==1.4.0
 trustme==1.2.1
 ruff==0.17.1
 bandit==1.9.4
+pytest-timeout==2.4.0
