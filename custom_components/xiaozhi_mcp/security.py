@@ -1,9 +1,12 @@
 """Validation shared by configuration and both bridge transports."""
 
+import asyncio
 import ipaddress
 import json
 import logging
 from urllib.parse import unquote, urljoin, urlsplit
+
+from homeassistant.util.ssl import get_default_context
 
 # Protocol debug logs include handshake URLs and household payloads.
 WEBSOCKET_LOGGER = logging.Logger("xiaozhi_mcp.transport", level=logging.CRITICAL + 1)
@@ -85,3 +88,10 @@ def validate_message(message: str | bytes) -> dict:
     if not any(key in data for key in ("method", "result", "error")):
         raise ValueError("Invalid JSON-RPC message")
     return data
+
+
+async def websocket_ssl_options(endpoint: str) -> dict:
+    """Load CA certificates off the event loop, retaining hostname verification."""
+    if urlsplit(endpoint).scheme == "wss":
+        return {"ssl": await asyncio.to_thread(get_default_context)}
+    return {}

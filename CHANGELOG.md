@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.0.27] - 2026-10-21
+
+- Clarify the two credentials: the full Xiaozhi URL includes its token; the dedicated field accepts a Home Assistant long-lived access token. Detect missing tokens on the official Xiaozhi endpoint before connecting.
+- Use WebSocket ping/pong during setup instead of requiring an application-level MCP response, avoiding false connection failures.
+- Report separate Xiaozhi authentication/TLS/network and Home Assistant authentication/TLS/MCP errors without exposing credentials.
+- Load verified TLS contexts off the event loop in setup and runtime, addressing the blocking certificate-loading report in #31.
+- Include English runtime translations so custom integration forms and errors display explanatory text.
+- Document DNS and HTTP/HTTPS troubleshooting from #29. The reconnect and options-flow fixes from 0.0.26 remain included.
+
+Restart Home Assistant after upgrading. Keep the complete Xiaozhi URL in the endpoint field. Live household/device validation is still required; automated tests use local servers.
+
 ## [0.0.26] - 2026-10-21
 
 ### Security

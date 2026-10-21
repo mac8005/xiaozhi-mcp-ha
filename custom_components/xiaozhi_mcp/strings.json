@@ -4,19 +4,19 @@
         "step": {
             "user": {
                 "title": "Xiaozhi MCP Configuration",
-                "description": "Configure your Xiaozhi MCP integration",
+                "description": "Use two separate credentials: paste the complete Xiaozhi URL including ?token=... in the endpoint field, and a Home Assistant long-lived access token in the token field.",
                 "data": {
                     "name": "Name",
-                    "xiaozhi_endpoint": "Xiaozhi MCP Endpoint",
-                    "access_token": "Long-Lived Access Token",
+                    "xiaozhi_endpoint": "Complete Xiaozhi endpoint URL (including token)",
+                    "access_token": "Home Assistant long-lived access token",
                     "mcp_server_url": "MCP Server URL",
                     "scan_interval": "Scan Interval (seconds)",
                     "enable_logging": "Enable Debug Logging"
                 },
                 "data_description": {
                     "name": "Friendly name for this integration instance",
-                    "xiaozhi_endpoint": "Your Xiaozhi MCP endpoint URL from xiaozhi.me",
-                    "access_token": "Long-lived access token from Home Assistant",
+                    "xiaozhi_endpoint": "Paste the complete URL copied from Xiaozhi, including ?token=...; do not move its token to the field below.",
+                    "access_token": "Create this token in your Home Assistant profile under Security. This is NOT the Xiaozhi token.",
                     "mcp_server_url": "URL of your Home Assistant MCP Server (default: http://localhost:8123/mcp_server/sse)",
                     "scan_interval": "How often to check connection status (default: 30 seconds)",
                     "enable_logging": "Enable detailed logging for debugging"
@@ -25,10 +25,16 @@
         },
         "error": {
             "connection_failed": "Failed to connect to Xiaozhi MCP endpoint",
-            "authentication_failed": "Authentication failed - check your access token",
+            "authentication_failed": "Home Assistant rejected this token. Use a Home Assistant long-lived access token, not the token from the Xiaozhi URL.",
             "invalid_endpoint": "Use a valid TLS URL; plaintext is allowed only on loopback",
             "timeout": "Connection timeout",
-            "unknown_error": "Unknown error occurred"
+            "unknown_error": "Unknown error occurred",
+            "xiaozhi_token_missing": "Paste the complete Xiaozhi endpoint URL including ?token=... from your Xiaozhi dashboard.",
+            "xiaozhi_auth_failed": "Xiaozhi rejected the endpoint credentials. Copy a fresh complete endpoint URL from Xiaozhi.",
+            "xiaozhi_connection_failed": "Cannot connect to Xiaozhi. Check the complete endpoint URL, DNS and internet access.",
+            "xiaozhi_tls_failed": "Cannot verify the Xiaozhi TLS certificate. Check the hostname, system clock and trusted certificate chain.",
+            "mcp_connection_failed": "Cannot reach the Home Assistant MCP SSE server. Install/configure MCP Server and check this URL, DNS, port and HTTP/HTTPS scheme.",
+            "mcp_tls_failed": "Cannot verify the Home Assistant MCP TLS certificate. Use a hostname matching its trusted certificate."
         },
         "abort": {
             "already_configured": "This Xiaozhi MCP endpoint is already configured",

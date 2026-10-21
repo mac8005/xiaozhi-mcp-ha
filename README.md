@@ -101,8 +101,8 @@ Before installing this integration, you **must** install the official Home Assis
 2. Search for "Xiaozhi MCP"
 3. Enter your configuration:
    - **Name**: Friendly name for the integration
-   - **Xiaozhi MCP Endpoint**: Your xiaozhi.me MCP endpoint URL
-   - **Long-Lived Access Token**: Token created in Step 1
+   - **Xiaozhi MCP Endpoint**: The complete URL copied from Xiaozhi, including `?token=...` (for example `wss://api.xiaozhi.me/mcp/?token=YOUR_XIAOZHI_TOKEN`)
+   - **Home Assistant Long-Lived Access Token**: The separate token created in your Home Assistant profile. Do not put the Xiaozhi token here.
    - **Scan Interval**: How often to check connection status (default: 30 seconds)
    - **Enable Logging**: Enable detailed logging for debugging
 
@@ -159,6 +159,12 @@ Once configured, your Xiaozhi device can:
 - **Entity Exposure**: Make sure to expose the entities you want to control via the MCP Server settings in Home Assistant
 - **MCP Communication**: Use loopback locally or valid TLS remotely
 - **No External URLs**: No need to configure external Home Assistant URLs or expose your instance to the internet
+
+### Setup connection errors
+
+There are two authenticated connections. The Xiaozhi credential stays in the full WebSocket URL; the dedicated token field belongs to Home Assistant. Version 0.0.27 identifies which connection failed.
+
+For MCP server failures, confirm that the official MCP Server integration is configured. `http://localhost:8123/mcp_server/sse` works only if HA actually listens there over HTTP. If HA serves HTTPS directly, use its matching trusted HTTPS hostname; verify that Home Assistant itself can resolve it. A reverse proxy and the internal HA listener can use different schemes/ports. Do not disable TLS verification or expose HA publicly to fix local connectivity.
 
 ### Debug Logging
 

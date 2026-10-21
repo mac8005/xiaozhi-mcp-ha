@@ -34,6 +34,7 @@ from .security import (
     WEBSOCKET_LOGGER,
     validate_message,
     validate_url,
+    websocket_ssl_options,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -184,10 +185,11 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
     async def _connect(self) -> None:
         try:
             await self._mcp_client.connect_to_mcp()
-            # websockets verifies the certificate chain and hostname by default.
+            ssl_options = await websocket_ssl_options(self.xiaozhi_endpoint)
             self._websocket = await websockets.connect(
                 self.xiaozhi_endpoint,
                 logger=WEBSOCKET_LOGGER,
+                **ssl_options,
                 ping_interval=30,
                 ping_timeout=CONNECTION_TIMEOUT,
                 close_timeout=10,

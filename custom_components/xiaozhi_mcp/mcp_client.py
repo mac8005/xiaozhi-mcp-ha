@@ -21,6 +21,10 @@ from .security import (
 _LOGGER = logging.getLogger(__name__)
 
 
+class MCPAuthenticationError(ConnectionError):
+    """Home Assistant rejected the bearer token."""
+
+
 class XiaozhiMCPClient:
     """Own one SSE session and its advertised POST endpoint."""
 
@@ -128,6 +132,9 @@ class XiaozhiMCPClient:
             allow_redirects=False,
             timeout=aiohttp.ClientTimeout(total=None, sock_connect=20, sock_read=None),
         )
+        if response.status in (401, 403):
+            response.close()
+            raise MCPAuthenticationError("Home Assistant rejected the access token")
         if response.status != 200 or response.content_type != "text/event-stream":
             response.close()
             raise ConnectionError(f"MCP SSE rejected (HTTP {response.status})")
@@ -158,11 +165,15 @@ class XiaozhiMCPClient:
         finally:
             self._ready.clear()
 
+    async def check_connection(self) -> None:
+        """Validate SSE without swallowing authentication or network failures."""
+        async with asyncio.timeout(20):
+            response = await self._open_sse()
+            response.close()
+
     async def test_connection(self) -> bool:
         try:
-            async with asyncio.timeout(20):
-                response = await self._open_sse()
-                response.close()
+            await self.check_connection()
             return True
         except Exception as err:
             _LOGGER.warning("MCP connection test failed (%s)", type(err).__name__)

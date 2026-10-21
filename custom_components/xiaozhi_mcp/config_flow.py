@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import ssl
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
+import aiohttp
 import voluptuous as vol
+import websockets
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
+from websockets.exceptions import InvalidStatus
 
 from .const import (
     CONF_ACCESS_TOKEN,
@@ -25,7 +30,8 @@ from .const import (
     DOMAIN,
     ERROR_CODES,
 )
-from .security import WEBSOCKET_LOGGER, validate_url
+from .mcp_client import MCPAuthenticationError, XiaozhiMCPClient
+from .security import WEBSOCKET_LOGGER, validate_url, websocket_ssl_options
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,49 +61,50 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     except ValueError as err:
         raise InvalidEndpoint(str(err)) from None
 
-    # Validate access token
-    if not access_token or len(access_token) < 10:
-        raise AuthenticationFailed("Access token must be at least 10 characters long")
+    endpoint_token = parse_qs(urlsplit(xiaozhi_endpoint).query).get("token", [""])[0]
+    if urlsplit(xiaozhi_endpoint).hostname == "api.xiaozhi.me" and not endpoint_token:
+        raise ConnectionFailed("xiaozhi_token_missing", CONF_XIAOZHI_ENDPOINT)
+    if not access_token or len(access_token) < 10 or access_token == endpoint_token:
+        raise AuthenticationFailed
 
-    # Test Xiaozhi connection
     try:
-        import websockets
-
-        connect_kwargs = {
-            "close_timeout": 10,
-            "open_timeout": 20,
-            "logger": WEBSOCKET_LOGGER,
-        }
-
-        async with websockets.connect(xiaozhi_endpoint, **connect_kwargs) as websocket:
-            # Send a simple ping to test connection
-            await websocket.send('{"jsonrpc": "2.0", "method": "ping", "id": 1}')
-            await asyncio.wait_for(websocket.recv(), timeout=5)
+        ssl_options = await websocket_ssl_options(xiaozhi_endpoint)
+        async with websockets.connect(
+            xiaozhi_endpoint,
+            close_timeout=10,
+            open_timeout=20,
+            logger=WEBSOCKET_LOGGER,
+            **ssl_options,
+        ) as websocket:
+            pong = await websocket.ping()
+            await asyncio.wait_for(pong, timeout=5)
+    except ssl.SSLError:
+        raise ConnectionFailed("xiaozhi_tls_failed", CONF_XIAOZHI_ENDPOINT) from None
+    except InvalidStatus as err:
+        code = (
+            "xiaozhi_auth_failed"
+            if err.response.status_code in (401, 403)
+            else "xiaozhi_connection_failed"
+        )
+        raise ConnectionFailed(code, CONF_XIAOZHI_ENDPOINT) from None
     except Exception as err:
-        _LOGGER.error("Failed to connect to Xiaozhi endpoint (%s)", type(err).__name__)
-        raise ConnectionFailed("Cannot connect to Xiaozhi endpoint") from None
+        _LOGGER.error("Xiaozhi connection test failed (%s)", type(err).__name__)
+        raise ConnectionFailed(
+            "xiaozhi_connection_failed", CONF_XIAOZHI_ENDPOINT
+        ) from None
 
-    # Test Home Assistant MCP Server connection
     try:
-        from .mcp_client import XiaozhiMCPClient
-
-        mcp_client = XiaozhiMCPClient(hass, access_token, mcp_server_url)
-        mcp_connected = await mcp_client.test_connection()
-
-        if not mcp_connected:
-            raise ConnectionFailed(
-                "Cannot connect to Home Assistant MCP Server. Please ensure the MCP Server integration is installed and running."
-            )
-
-        # Return info that you want to store in the config entry
-        return {
-            "title": data[CONF_NAME],
-            "xiaozhi_endpoint": xiaozhi_endpoint,
-            "access_token": access_token,
-        }
+        await XiaozhiMCPClient(hass, access_token, mcp_server_url).check_connection()
+    except MCPAuthenticationError:
+        raise AuthenticationFailed from None
+    except (ssl.SSLError, aiohttp.ClientSSLError):
+        raise ConnectionFailed("mcp_tls_failed", CONF_MCP_SERVER_URL) from None
     except Exception as err:
-        _LOGGER.error("MCP Server connection failed (%s)", type(err).__name__)
-        raise ConnectionFailed("Cannot connect to Home Assistant MCP Server") from None
+        _LOGGER.error(
+            "Home Assistant MCP connection test failed (%s)", type(err).__name__
+        )
+        raise ConnectionFailed("mcp_connection_failed", CONF_MCP_SERVER_URL) from None
+    return {"title": data[CONF_NAME]}
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -116,10 +123,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         try:
             info = await validate_input(self.hass, user_input)
-        except ConnectionFailed:
-            errors["base"] = ERROR_CODES["CONNECTION_FAILED"]
+        except ConnectionFailed as err:
+            errors[err.field] = err.code
         except AuthenticationFailed:
-            errors["base"] = ERROR_CODES["AUTHENTICATION_FAILED"]
+            errors[CONF_ACCESS_TOKEN] = ERROR_CODES["AUTHENTICATION_FAILED"]
         except InvalidEndpoint:
             errors["base"] = ERROR_CODES["INVALID_ENDPOINT"]
         except Exception as err:
@@ -178,7 +185,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
 
 class ConnectionFailed(Exception):
-    """Error to indicate we cannot connect."""
+    """A credential-free, field-specific setup failure."""
+
+    def __init__(self, code="xiaozhi_connection_failed", field=CONF_XIAOZHI_ENDPOINT):
+        super().__init__(code)
+        self.code = code
+        self.field = field
 
 
 class AuthenticationFailed(Exception):
