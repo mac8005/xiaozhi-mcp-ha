@@ -113,6 +113,7 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
     async def async_shutdown(self) -> None:
         await self.async_disconnect()
         await self._cancel_task("_connection_monitor_task")
+        await super().async_shutdown()
 
     async def async_reconnect(self) -> None:
         async with self._lifecycle_lock:

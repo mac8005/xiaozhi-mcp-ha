@@ -21,5 +21,6 @@ Updated: 2026-10-21
 - Multiple bridges require explicit entry_id for service calls.
 
 ## Log
+- 2026-10-21: Verified minimum HA coordinator API; ensured parent coordinator timers are cancelled during shutdown.
 - 2026-10-21: Completed source review and implementation; 39 tests, Ruff, dependency audit and medium/high security checks pass.
 - 2026-10-21: Started security review and initialized shared status.
