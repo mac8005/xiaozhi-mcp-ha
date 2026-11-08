@@ -2,7 +2,7 @@
 Updated: 2026-11-08
 
 ## In flight
-- 0.0.28 custom MCP CA support implemented; 58 tests pass on HA 2026.2.3 / Python 3.13 and HA 2026.11.0 / Python 3.14. Awaiting release CI and publication, then Discussion #34 reply.
+- 0.0.28 custom MCP CA support implemented; 58 tests pass on HA 2026.2.3 / Python 3.13 and HA 2026.11.0 / Python 3.14. Main CI passed; tag v0.0.28 pushed at 9f93f67. Awaiting release workflow and archive verification, then Discussion #34 reply.
 
 ## Decisions
 - Scope custom CA trust to the Home Assistant MCP client; preserve hostname verification and default Xiaozhi cloud trust.
@@ -22,6 +22,7 @@ Updated: 2026-11-08
 - Use short pytest parameter IDs for large payload fixtures to avoid oversized CI log lines.
 
 ## Log
+- 2026-11-08: Main CI 42521372497 passed tests, lint, security, Hassfest and HACS; tagged 9f93f67 as v0.0.28 for release.
 - 2026-11-08: Implemented 0.0.28 custom CA setup/options and isolated SSE/POST trust; 58 tests pass on both HA versions, lint/format/diff and medium/high security checks pass.
 - 2026-11-08: Started authorized custom-CA implementation and release for Discussion #34.
 - 2026-10-21: Published 0.0.27 (f4e9d81), release run 39586063954 passed 45 tests and all checks; downloaded 13-file ZIP and checksum verified. Replies #29/6313981389, #30/6313981840, #31/6313982267 posted and verified.
