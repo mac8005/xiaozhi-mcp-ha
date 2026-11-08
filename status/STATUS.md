@@ -1,10 +1,11 @@
 # Status
-Updated: 2026-10-21
+Updated: 2026-11-08
 
 ## In flight
-- None. Version 0.0.27 published and verified; replies on #29, #30 and #31 posted.
+- Implement optional MCP CA certificate trust for Discussion #34; test, publish 0.0.28, then reply.
 
 ## Decisions
+- Scope custom CA trust to the Home Assistant MCP client; preserve hostname verification and default Xiaozhi cloud trust.
 - Fix independently verified TLS bypass/log leakage; reporter's undisclosed finding remains unconfirmed.
 - Require TLS outside loopback; retain legacy HTTP/SSE protocol.
 - See [security review](2026-10-21-security-review.md) and [0.0.27 setup follow-up](2026-10-21-setup-followup.md).
@@ -20,6 +21,7 @@ Updated: 2026-10-21
 - Use short pytest parameter IDs for large payload fixtures to avoid oversized CI log lines.
 
 ## Log
+- 2026-11-08: Started authorized custom-CA implementation and release for Discussion #34.
 - 2026-10-21: Published 0.0.27 (f4e9d81), release run 39586063954 passed 45 tests and all checks; downloaded 13-file ZIP and checksum verified. Replies #29/6313981389, #30/6313981840, #31/6313982267 posted and verified.
 - 2026-10-21: Fixed setup ping, credential labels, specific errors, runtime English translations and off-loop verified TLS loading; 45 local tests pass.
 - 2026-10-21: Published v0.0.26 (f3b6488); release run 39576609210 passed. ZIP checksum and all 12 files verified against tag; #33 comment 6312615364 verified.
