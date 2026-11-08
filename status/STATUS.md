@@ -2,7 +2,7 @@
 Updated: 2026-11-08
 
 ## In flight
-- Implement optional MCP CA certificate trust for Discussion #34; test, publish 0.0.28, then reply.
+- 0.0.28 custom MCP CA support implemented; 58 tests pass on HA 2026.2.3 / Python 3.13 and HA 2026.11.0 / Python 3.14. Awaiting release CI and publication, then Discussion #34 reply.
 
 ## Decisions
 - Scope custom CA trust to the Home Assistant MCP client; preserve hostname verification and default Xiaozhi cloud trust.
@@ -11,8 +11,9 @@ Updated: 2026-11-08
 - See [security review](2026-10-21-security-review.md) and [0.0.27 setup follow-up](2026-10-21-setup-followup.md).
 
 ## Next
-1. User retries setup with full Xiaozhi URL and a separate Home Assistant token.
-2. Review reporter confirmation on #29/#30/#31 and any private security report.
+1. Publish and verify 0.0.28 HACS archive after CI.
+2. Reply to Discussion #34 with the released certificate configuration steps.
+3. Await reporter confirmation on Raspberry Pi; no household/device validation performed.
 
 ## Gotchas
 - Live Home Assistant/device validation has not been performed.
@@ -21,6 +22,7 @@ Updated: 2026-11-08
 - Use short pytest parameter IDs for large payload fixtures to avoid oversized CI log lines.
 
 ## Log
+- 2026-11-08: Implemented 0.0.28 custom CA setup/options and isolated SSE/POST trust; 58 tests pass on both HA versions, lint/format/diff and medium/high security checks pass.
 - 2026-11-08: Started authorized custom-CA implementation and release for Discussion #34.
 - 2026-10-21: Published 0.0.27 (f4e9d81), release run 39586063954 passed 45 tests and all checks; downloaded 13-file ZIP and checksum verified. Replies #29/6313981389, #30/6313981840, #31/6313982267 posted and verified.
 - 2026-10-21: Fixed setup ping, credential labels, specific errors, runtime English translations and off-loop verified TLS loading; 45 local tests pass.

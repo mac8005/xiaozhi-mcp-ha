@@ -11,7 +11,8 @@
                     "access_token": "Home Assistant long-lived access token",
                     "mcp_server_url": "MCP Server URL",
                     "scan_interval": "Scan Interval (seconds)",
-                    "enable_logging": "Enable Debug Logging"
+                    "enable_logging": "Enable Debug Logging",
+                    "mcp_ca_cert": "Home Assistant MCP CA certificate"
                 },
                 "data_description": {
                     "name": "Friendly name for this integration instance",
@@ -19,7 +20,8 @@
                     "access_token": "Create this token in your Home Assistant profile under Security. This is NOT the Xiaozhi token.",
                     "mcp_server_url": "URL of your Home Assistant MCP Server (default: http://localhost:8123/mcp_server/sse)",
                     "scan_interval": "How often to check connection status (default: 30 seconds)",
-                    "enable_logging": "Enable detailed logging for debugging"
+                    "enable_logging": "Enable detailed logging for debugging",
+                    "mcp_ca_cert": "Optional absolute path to a trusted PEM CA certificate or self-signed server certificate, e.g. /config/certs/ha-ca.pem. Leave blank for default trust. Applies only to Home Assistant MCP; hostname verification remains enabled."
                 }
             }
         },
@@ -34,7 +36,8 @@
             "xiaozhi_connection_failed": "Cannot connect to Xiaozhi. Check the complete endpoint URL, DNS and internet access.",
             "xiaozhi_tls_failed": "Cannot verify the Xiaozhi TLS certificate. Check the hostname, system clock and trusted certificate chain.",
             "mcp_connection_failed": "Cannot reach the Home Assistant MCP SSE server. Install/configure MCP Server and check this URL, DNS, port and HTTP/HTTPS scheme.",
-            "mcp_tls_failed": "Cannot verify the Home Assistant MCP TLS certificate. Use a hostname matching its trusted certificate."
+            "mcp_tls_failed": "Cannot verify the Home Assistant MCP TLS certificate. Check its validity, trusted CA and matching hostname or IP address in Subject Alternative Name.",
+            "mcp_ca_invalid": "Cannot load the MCP CA certificate. Use an absolute path to a readable PEM certificate file inside Home Assistant, not a private key."
         },
         "abort": {
             "already_configured": "This Xiaozhi MCP endpoint is already configured",
@@ -48,9 +51,19 @@
                 "description": "Configure advanced options for Xiaozhi MCP",
                 "data": {
                     "scan_interval": "Scan Interval (seconds)",
-                    "enable_logging": "Enable Debug Logging"
+                    "enable_logging": "Enable Debug Logging",
+                    "mcp_ca_cert": "Home Assistant MCP CA certificate"
+                },
+                "data_description": {
+                    "mcp_ca_cert": "Optional absolute path to a trusted PEM CA certificate or self-signed server certificate, e.g. /config/certs/ha-ca.pem. Leave blank for default trust. Applies only to Home Assistant MCP; hostname verification remains enabled."
                 }
             }
+        },
+        "error": {
+            "mcp_ca_invalid": "Cannot load the MCP CA certificate. Use an absolute path to a readable PEM certificate file inside Home Assistant, not a private key.",
+            "mcp_tls_failed": "Cannot verify the Home Assistant MCP TLS certificate. Check its validity, trusted CA and matching hostname or IP address in Subject Alternative Name.",
+            "mcp_connection_failed": "Cannot reach the Home Assistant MCP SSE server. Install/configure MCP Server and check this URL, DNS, port and HTTP/HTTPS scheme.",
+            "authentication_failed": "Home Assistant rejected this token. Use a Home Assistant long-lived access token, not the token from the Xiaozhi URL."
         }
     },
     "services": {

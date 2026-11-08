@@ -11,6 +11,7 @@ CONF_ACCESS_TOKEN: Final = "access_token"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_ENABLE_LOGGING: Final = "enable_logging"
 CONF_MCP_SERVER_URL: Final = "mcp_server_url"
+CONF_MCP_CA_CERT: Final = "mcp_ca_cert"
 
 # Default values
 DEFAULT_SCAN_INTERVAL: Final = 30

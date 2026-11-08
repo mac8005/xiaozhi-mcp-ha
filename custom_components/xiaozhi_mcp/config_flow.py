@@ -20,6 +20,7 @@ from websockets.exceptions import InvalidStatus
 from .const import (
     CONF_ACCESS_TOKEN,
     CONF_ENABLE_LOGGING,
+    CONF_MCP_CA_CERT,
     CONF_MCP_SERVER_URL,
     CONF_SCAN_INTERVAL,
     CONF_XIAOZHI_ENDPOINT,
@@ -30,7 +31,7 @@ from .const import (
     DOMAIN,
     ERROR_CODES,
 )
-from .mcp_client import MCPAuthenticationError, XiaozhiMCPClient
+from .mcp_client import MCPAuthenticationError, MCPCertificateError, XiaozhiMCPClient
 from .security import WEBSOCKET_LOGGER, validate_url, websocket_ssl_options
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,6 +42,7 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_XIAOZHI_ENDPOINT): str,
         vol.Required(CONF_ACCESS_TOKEN): str,
         vol.Optional(CONF_MCP_SERVER_URL, default=DEFAULT_MCP_SERVER_URL): str,
+        vol.Optional(CONF_MCP_CA_CERT, default=""): str,
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
             vol.Coerce(int), vol.Range(min=5, max=3600)
         ),
@@ -93,8 +95,21 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             "xiaozhi_connection_failed", CONF_XIAOZHI_ENDPOINT
         ) from None
 
+    await validate_mcp(hass, data)
+    return {"title": data[CONF_NAME]}
+
+
+async def validate_mcp(hass: HomeAssistant, data: dict[str, Any]) -> None:
+    """Check the local MCP connection with its configured trust certificate."""
     try:
-        await XiaozhiMCPClient(hass, access_token, mcp_server_url).check_connection()
+        await XiaozhiMCPClient(
+            hass,
+            data[CONF_ACCESS_TOKEN],
+            data.get(CONF_MCP_SERVER_URL, DEFAULT_MCP_SERVER_URL),
+            data.get(CONF_MCP_CA_CERT, ""),
+        ).check_connection()
+    except MCPCertificateError:
+        raise ConnectionFailed("mcp_ca_invalid", CONF_MCP_CA_CERT) from None
     except MCPAuthenticationError:
         raise AuthenticationFailed from None
     except (ssl.SSLError, aiohttp.ClientSSLError):
@@ -104,7 +119,6 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             "Home Assistant MCP connection test failed (%s)", type(err).__name__
         )
         raise ConnectionFailed("mcp_connection_failed", CONF_MCP_SERVER_URL) from None
-    return {"title": data[CONF_NAME]}
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -155,11 +169,29 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         """Handle options flow."""
+        current_ca = self.config_entry.options.get(
+            CONF_MCP_CA_CERT, self.config_entry.data.get(CONF_MCP_CA_CERT, "")
+        )
+        errors = {}
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            user_input = dict(user_input)
+            user_input[CONF_MCP_CA_CERT] = user_input.get(CONF_MCP_CA_CERT, "").strip()
+            try:
+                if user_input[CONF_MCP_CA_CERT] != current_ca:
+                    await validate_mcp(
+                        self.hass, {**self.config_entry.data, **user_input}
+                    )
+            except ConnectionFailed as err:
+                field = CONF_MCP_CA_CERT if err.field == CONF_MCP_CA_CERT else "base"
+                errors[field] = err.code
+            except AuthenticationFailed:
+                errors["base"] = "authentication_failed"
+            else:
+                return self.async_create_entry(title="", data=user_input)
 
         data_schema = vol.Schema(
             {
+                vol.Optional(CONF_MCP_CA_CERT, default=current_ca): str,
                 vol.Optional(
                     CONF_SCAN_INTERVAL,
                     default=self.config_entry.options.get(
@@ -181,7 +213,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             }
         )
 
-        return self.async_show_form(step_id="init", data_schema=data_schema)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(data_schema, user_input),
+            errors=errors,
+        )
 
 
 class ConnectionFailed(Exception):

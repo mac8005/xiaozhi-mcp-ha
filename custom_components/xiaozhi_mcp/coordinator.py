@@ -21,6 +21,7 @@ from .const import (
     ATTR_MESSAGE_COUNT,
     ATTR_RECONNECT_COUNT,
     CONF_ENABLE_LOGGING,
+    CONF_MCP_CA_CERT,
     CONNECTION_MONITOR_INTERVAL,
     CONNECTION_TIMEOUT,
     INITIAL_BACKOFF,
@@ -65,7 +66,14 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
         self.enable_logging = config_entry.options.get(
             CONF_ENABLE_LOGGING, config_entry.data.get(CONF_ENABLE_LOGGING, False)
         )
-        self._mcp_client = XiaozhiMCPClient(hass, access_token, mcp_server_url)
+        self._mcp_client = XiaozhiMCPClient(
+            hass,
+            access_token,
+            mcp_server_url,
+            config_entry.options.get(
+                CONF_MCP_CA_CERT, config_entry.data.get(CONF_MCP_CA_CERT, "")
+            ),
+        )
         self._connected = self._connecting = self._manual_disconnect = False
         self._websocket = None
         self._reconnect_task = self._message_task = self._connection_monitor_task = None

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import ssl
 from contextlib import suppress
+from pathlib import Path
 
 import aiohttp
 from homeassistant.core import HomeAssistant
@@ -25,15 +27,35 @@ class MCPAuthenticationError(ConnectionError):
     """Home Assistant rejected the bearer token."""
 
 
+class MCPCertificateError(ValueError):
+    """The configured MCP trust certificate cannot be loaded."""
+
+
+def _load_ca_context(cafile: str) -> ssl.SSLContext:
+    """Build private trust without modifying Home Assistant's shared context."""
+    if not Path(cafile).is_absolute():
+        raise MCPCertificateError("Use an absolute PEM certificate path")
+    try:
+        return ssl.create_default_context(cafile=cafile)
+    except (OSError, ssl.SSLError, ValueError):
+        raise MCPCertificateError("Cannot load MCP CA certificate") from None
+
+
 class XiaozhiMCPClient:
     """Own one SSE session and its advertised POST endpoint."""
 
     def __init__(
-        self, hass: HomeAssistant, access_token: str, mcp_server_url: str | None = None
+        self,
+        hass: HomeAssistant,
+        access_token: str,
+        mcp_server_url: str | None = None,
+        mcp_ca_cert: str = "",
     ):
         self.hass = hass
         self.access_token = access_token
         self.mcp_server_url = validate_url(mcp_server_url or DEFAULT_MCP_SERVER_URL)
+        self.mcp_ca_cert = mcp_ca_cert.strip()
+        self._ssl_context = None
         self.session = None
         self._sse_response = None
         self._sse_queue = asyncio.Queue(maxsize=64)
@@ -43,6 +65,10 @@ class XiaozhiMCPClient:
         self._ready = asyncio.Event()
 
     async def _ensure_session(self):
+        if self.mcp_ca_cert and self._ssl_context is None:
+            self._ssl_context = await asyncio.to_thread(
+                _load_ca_context, self.mcp_ca_cert
+            )
         if self.session is None:
             self.session = async_get_clientsession(self.hass)
         return self.session
@@ -81,6 +107,7 @@ class XiaozhiMCPClient:
                 "Content-Type": "application/json",
             },
             data=message,
+            ssl=self._ssl_context if self._ssl_context is not None else True,
             allow_redirects=False,
             timeout=aiohttp.ClientTimeout(total=20),
         ) as response:
@@ -129,6 +156,7 @@ class XiaozhiMCPClient:
                 "Authorization": f"Bearer {self.access_token}",
                 "Accept": "text/event-stream",
             },
+            ssl=self._ssl_context if self._ssl_context is not None else True,
             allow_redirects=False,
             timeout=aiohttp.ClientTimeout(total=None, sock_connect=20, sock_read=None),
         )

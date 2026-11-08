@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.28] - 2026-11-08
+
+- Add an optional Home Assistant MCP CA certificate file in setup and Configure options, supporting local HTTPS with private CAs and self-signed server certificates.
+- Apply custom trust to both MCP SSE and POST connections while retaining certificate validity and hostname/IP verification. Xiaozhi WebSocket and shared Home Assistant trust remain unchanged.
+- Validate certificate files and changed MCP trust settings before saving, with specific errors for unreadable or invalid PEM files. Load certificates off the event loop.
+- Document certificate paths, IP Subject Alternative Names, and reloading after certificate replacement.
+
+Restart Home Assistant after upgrading. For local HTTPS, set the certificate path as described in the README. Automated tests cover local TLS servers; confirmation on the reporter's Raspberry Pi remains pending.
+
 ## [0.0.27] - 2026-10-21
 
 - Clarify the two credentials: the full Xiaozhi URL includes its token; the dedicated field accepts a Home Assistant long-lived access token. Detect missing tokens on the official Xiaozhi endpoint before connecting.

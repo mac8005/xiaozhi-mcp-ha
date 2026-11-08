@@ -10,4 +10,6 @@ The configured Xiaozhi service can invoke the tools exposed by your authenticate
 
 Connections outside loopback require TLS with a valid certificate. Plain HTTP/WS is accepted only for localhost or a loopback IP. A private LAN address does not imply encrypted or authenticated transport. There is no certificate-verification bypass.
 
+Version 0.0.28 allows an optional PEM CA certificate (or directly self-signed server certificate) for each Home Assistant MCP connection. This trust is confined to that entry's SSE and POST requests; it does not modify shared Home Assistant or Xiaozhi WebSocket trust. The server must still pass certificate validity and hostname/IP verification. Protect the configured certificate file from unauthorized replacement and reload the integration after updating it.
+
 Version 0.0.26 removes endpoint and message payload logging. Earlier versions could write sensitive endpoint URLs and household messages into logs. Review access to retained logs; rotate affected endpoint credentials if those logs were shared or exposed. The review did not establish that any installation was exploited.

@@ -146,6 +146,7 @@ Once configured, your Xiaozhi device can:
 | `name`             | Friendly name for the integration | Yes      | -       |
 | `xiaozhi_endpoint` | Xiaozhi MCP endpoint URL          | Yes      | -       |
 | `access_token`     | Long-lived access token           | Yes      | -       |
+| `mcp_ca_cert`      | Absolute PEM certificate path for Home Assistant MCP only | No | Empty (default trust) |
 | `scan_interval`    | Status check interval (seconds)   | No       | 30      |
 | `enable_logging`   | Enable detailed logging           | No       | False   |
 
@@ -165,6 +166,19 @@ Once configured, your Xiaozhi device can:
 There are two authenticated connections. The Xiaozhi credential stays in the full WebSocket URL; the dedicated token field belongs to Home Assistant. Version 0.0.27 identifies which connection failed.
 
 For MCP server failures, confirm that the official MCP Server integration is configured. `http://localhost:8123/mcp_server/sse` works only if HA actually listens there over HTTP. If HA serves HTTPS directly, use its matching trusted HTTPS hostname; verify that Home Assistant itself can resolve it. A reverse proxy and the internal HA listener can use different schemes/ports. Do not disable TLS verification or expose HA publicly to fix local connectivity.
+
+### Local HTTPS with a private CA or self-signed certificate
+
+Version 0.0.28 adds **Home Assistant MCP CA certificate** during setup and under **Settings > Devices & Services > Xiaozhi MCP > Configure** for existing entries.
+
+1. Put the PEM public certificate of your issuing CA in a file readable by Home Assistant Core, for example `/config/certs/ha-ca.pem`. For a directly self-signed server certificate, use that public certificate instead. Do not use the private key. An existing readable certificate under `/ssl/` can also be used; copying a file there alone does not establish trust.
+2. Keep your HTTPS MCP URL, for example `https://192.168.90.32:8123/mcp_server/sse`, using your actual port.
+3. Enter the absolute certificate file path in **Home Assistant MCP CA certificate**. Setup and changes to this option validate the MCP connection before saving. Saving options reloads the integration.
+4. The server certificate must be valid and match the URL: use `IP:192.168.90.32` in Subject Alternative Name for this IP, or a matching DNS SAN for a hostname. A matching Common Name alone is not sufficient for IP access. Home Assistant must serve any required intermediate certificates.
+
+The selected PEM file supplies trust only for this integration entry's Home Assistant MCP HTTPS requests (both SSE and POST). It does not change Xiaozhi WebSocket trust or Home Assistant's shared CA store. Certificate and hostname verification stay enabled; there is no verification bypass. Leave the field blank to use default trust. After replacing a certificate file, reload the integration to load it again.
+
+Direct HTTPS in Home Assistant remains supported; no reverse proxy or Cloudflare Tunnel change is required for this local connection. HTTP loopback works only when Home Assistant actually serves HTTP on that listener.
 
 ### Debug Logging
 
