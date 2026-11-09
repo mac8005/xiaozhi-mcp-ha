@@ -2,7 +2,7 @@
 Updated: 2026-11-09
 
 ## In flight
-- Discussion #34 reporter still sees TLS failure; inspected file has the correct IP SAN. Installed version/restart, exact CA path and live certificate verification remain unconfirmed.
+- Verify and implement MCP startup diagnostics for Discussion #34, publish 0.0.29, then reply. Reporter confirms success after stopping another MCP service; exact third-party conflict remains unverified.
 
 ## Decisions
 - Scope custom CA trust to the Home Assistant MCP client; preserve hostname verification and default Xiaozhi cloud trust.
@@ -21,6 +21,7 @@ Updated: 2026-11-09
 - Use short pytest parameter IDs for large payload fixtures to avoid oversized CI log lines.
 
 ## Log
+- 2026-11-09: Started authorized startup diagnostics and release after reporter success and conflict-warning suggestion.
 - 2026-11-09: Read continuing TLS failure and correct IP SAN report; posted and verified diagnostic reply 19484393 requesting loaded version, exact trust path and live TLS verification.
 - 2026-11-08: Released v0.0.28 at 9f93f67; workflow 42521516472 passed. Downloaded ZIP checksum and all 13 files verified. Discussion #34 reply 19478896 posted and read back.
 - 2026-11-08: Main CI 42521372497 passed tests, lint, security, Hassfest and HACS; tagged 9f93f67 as v0.0.28 for release.
