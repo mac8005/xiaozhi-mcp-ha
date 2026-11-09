@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.0.29] - 2026-11-09
+
+- Check the configured MCP SSE handshake during startup/reload, setup and changes to connection settings.
+- Report unsupported transport URLs, HTTP 404/405, invalid SSE responses and Home Assistant's explicit duplicate MCP Server configuration error with actionable messages.
+- Show per-entry startup warnings in Home Assistant Repairs and clear them after recovery or entry removal.
+- Allow correcting the MCP Server URL in Configure options, with validation before saving.
+- Clarify that the native Home Assistant MCP Server is required and can coexist with other AI clients; this release does not guess conflicts from installed integration names or add Streamable HTTP support.
+
+Restart Home Assistant after updating. The reporter confirmed his previous setup works after stopping another service; the exact third-party route conflict remains unverified.
+
 ## [0.0.28] - 2026-11-08
 
 - Add an optional Home Assistant MCP CA certificate file in setup and Configure options, supporting local HTTPS with private CAs and self-signed server certificates.

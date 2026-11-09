@@ -2,16 +2,17 @@
 Updated: 2026-11-09
 
 ## In flight
-- Verify and implement MCP startup diagnostics for Discussion #34, publish 0.0.29, then reply. Reporter confirms success after stopping another MCP service; exact third-party conflict remains unverified.
+- Implemented 0.0.29 MCP startup diagnostics; local validation passed. Publish after remote CI, verify release archive, then reply to Discussion #34.
 
 ## Decisions
 - Scope custom CA trust to the Home Assistant MCP client; preserve hostname verification and default Xiaozhi cloud trust.
 - Fix independently verified TLS bypass/log leakage; reporter's undisclosed finding remains unconfirmed.
 - Require TLS outside loopback; retain legacy HTTP/SSE protocol.
+- Diagnose endpoint responses, not installed AI integration names. Native MCP Server is required; its HTTP and SSE routes coexist. Do not suggest /api/mcp_http.
 - See [security review](2026-10-21-security-review.md) and [0.0.27 setup follow-up](2026-10-21-setup-followup.md).
 
 ## Next
-1. Await Discussion #34 version/restart confirmation, exact CA setting and OpenSSL live verification result.
+1. Publish 0.0.29 after CI, verify the downloaded release, then reply to comment 19502001. Reporter confirms success after stopping another service; its exact conflict remains unverified.
 2. Review reporter confirmation on #29/#30/#31 and any private security report.
 
 ## Gotchas
@@ -21,6 +22,7 @@ Updated: 2026-11-09
 - Use short pytest parameter IDs for large payload fixtures to avoid oversized CI log lines.
 
 ## Log
+- 2026-11-09: Implemented startup SSE checks, scoped Repairs warnings and editable MCP URL. All 74 tests pass on HA 2026.2.3 and 2026.11.0; Ruff, diff and medium/high Bandit checks pass.
 - 2026-11-09: Started authorized startup diagnostics and release after reporter success and conflict-warning suggestion.
 - 2026-11-09: Read continuing TLS failure and correct IP SAN report; posted and verified diagnostic reply 19484393 requesting loaded version, exact trust path and live TLS verification.
 - 2026-11-08: Released v0.0.28 at 9f93f67; workflow 42521516472 passed. Downloaded ZIP checksum and all 13 files verified. Discussion #34 reply 19478896 posted and read back.
@@ -35,4 +37,3 @@ Updated: 2026-11-09
 - 2026-10-21: Added test/process/job deadlines and pinned Ubuntu 24.04 while investigating stalled CI output.
 - 2026-10-21: Verified minimum HA coordinator API; ensured parent coordinator timers are cancelled during shutdown.
 - 2026-10-21: Completed source review and implementation; local tests, Ruff, dependency audit and medium/high security checks pass.
-- 2026-10-21: Started security review and initialized shared status.

@@ -7,6 +7,7 @@ import logging
 import ssl
 from contextlib import suppress
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import aiohttp
 from homeassistant.core import HomeAssistant
@@ -29,6 +30,14 @@ class MCPAuthenticationError(ConnectionError):
 
 class MCPCertificateError(ValueError):
     """The configured MCP trust certificate cannot be loaded."""
+
+
+class MCPServerError(ConnectionError):
+    """An actionable MCP endpoint failure, without server-supplied details."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
 
 
 def _load_ca_context(cafile: str) -> ssl.SSLContext:
@@ -121,7 +130,7 @@ class XiaozhiMCPClient:
                 raise ConnectionError("MCP session ended")
             yield message
 
-    async def _read_sse_stream(self) -> None:
+    async def _read_sse_stream(self, *, stop_after_endpoint: bool = False) -> None:
         event, data, size = "message", [], 0
         async for raw in self._sse_response.content:
             line = raw.decode("utf-8").rstrip("\r\n")
@@ -136,6 +145,8 @@ class XiaozhiMCPClient:
                             self.mcp_server_url, payload
                         )
                         self._ready.set()
+                        if stop_after_endpoint:
+                            return
                     elif event == "message":
                         validate_message(payload)
                         await self._sse_queue.put(payload)
@@ -149,6 +160,13 @@ class XiaozhiMCPClient:
                     data.append(value)
 
     async def _open_sse(self):
+        path = urlsplit(self.mcp_server_url).path.rstrip("/")
+        if path in ("/api/mcp", "/api/mcp_http") or path.startswith("/api/mcp/"):
+            raise MCPServerError(
+                "mcp_wrong_transport",
+                "This bridge requires /mcp_server/sse, not a Streamable HTTP endpoint. "
+                "Keep Home Assistant's native MCP Server enabled.",
+            )
         session = await self._ensure_session()
         response = await session.get(
             self.mcp_server_url,
@@ -163,6 +181,36 @@ class XiaozhiMCPClient:
         if response.status in (401, 403):
             response.close()
             raise MCPAuthenticationError("Home Assistant rejected the access token")
+        if response.status in (404, 405):
+            try:
+                # Only recognize HA's exact diagnostic; never log response bodies.
+                async with asyncio.timeout(5):
+                    try:
+                        body = await response.content.readexactly(256)
+                    except asyncio.IncompleteReadError as err:
+                        body = err.partial
+            finally:
+                response.close()
+            if response.status == 404 and body.strip() == (
+                b"Found multiple Model Context Protocol configurations"
+            ):
+                raise MCPServerError(
+                    "mcp_multiple_servers",
+                    "Home Assistant reports multiple loaded MCP Server configurations. "
+                    "Keep one intended native MCP Server configuration enabled.",
+                )
+            raise MCPServerError(
+                "mcp_endpoint_unavailable",
+                "The MCP endpoint returned HTTP 404 or 405. Check /mcp_server/sse, "
+                "the native MCP Server configuration and proxy routing.",
+            )
+        if response.status == 200 and response.content_type != "text/event-stream":
+            response.close()
+            raise MCPServerError(
+                "mcp_invalid_response",
+                "The endpoint did not return an MCP SSE stream. Check the configured "
+                "URL and whether another service or proxy handles that path.",
+            )
         if response.status != 200 or response.content_type != "text/event-stream":
             response.close()
             raise ConnectionError(f"MCP SSE rejected (HTTP {response.status})")
@@ -194,10 +242,26 @@ class XiaozhiMCPClient:
             self._ready.clear()
 
     async def check_connection(self) -> None:
-        """Validate SSE without swallowing authentication or network failures."""
+        """Require the SSE endpoint event, not just a successful HTTP response."""
         async with asyncio.timeout(20):
             response = await self._open_sse()
-            response.close()
+            self._sse_response = response
+            try:
+                try:
+                    async with asyncio.timeout(5):
+                        await self._read_sse_stream(stop_after_endpoint=True)
+                    if not self._ready.is_set():
+                        raise ValueError("Missing endpoint event")
+                except (TimeoutError, ValueError):
+                    raise MCPServerError(
+                        "mcp_invalid_response",
+                        "The endpoint did not advertise a valid MCP SSE POST endpoint "
+                        "within five seconds. Check the MCP service and proxy routing.",
+                    ) from None
+            finally:
+                response.close()
+                self._sse_response = None
+                self._clear_session_state()
 
     async def test_connection(self) -> bool:
         try:

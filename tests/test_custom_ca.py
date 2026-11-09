@@ -274,7 +274,7 @@ async def test_options_validate_save_reuse_and_clear(tmp_path):
                 await coordinator._mcp_client.check_connection()
                 # Clearing cannot silently accept a still-untrusted HTTPS server.
                 result = await flow.async_step_init({"mcp_ca_cert": ""})
-                assert result["errors"] == {"base": "mcp_tls_failed"}
+                assert result["errors"] == {"mcp_server_url": "mcp_tls_failed"}
                 entry.data["mcp_server_url"] = "http://localhost:8123/mcp_server/sse"
                 with patch.object(
                     XiaozhiMCPClient, "check_connection", new_callable=AsyncMock

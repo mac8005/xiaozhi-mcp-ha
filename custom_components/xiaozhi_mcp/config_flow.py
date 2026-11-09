@@ -31,7 +31,12 @@ from .const import (
     DOMAIN,
     ERROR_CODES,
 )
-from .mcp_client import MCPAuthenticationError, MCPCertificateError, XiaozhiMCPClient
+from .mcp_client import (
+    MCPAuthenticationError,
+    MCPCertificateError,
+    MCPServerError,
+    XiaozhiMCPClient,
+)
 from .security import WEBSOCKET_LOGGER, validate_url, websocket_ssl_options
 
 _LOGGER = logging.getLogger(__name__)
@@ -110,10 +115,14 @@ async def validate_mcp(hass: HomeAssistant, data: dict[str, Any]) -> None:
         ).check_connection()
     except MCPCertificateError:
         raise ConnectionFailed("mcp_ca_invalid", CONF_MCP_CA_CERT) from None
+    except MCPServerError as err:
+        raise ConnectionFailed(err.code, CONF_MCP_SERVER_URL) from None
     except MCPAuthenticationError:
         raise AuthenticationFailed from None
     except (ssl.SSLError, aiohttp.ClientSSLError):
         raise ConnectionFailed("mcp_tls_failed", CONF_MCP_SERVER_URL) from None
+    except ValueError:
+        raise ConnectionFailed("invalid_endpoint", CONF_MCP_SERVER_URL) from None
     except Exception as err:
         _LOGGER.error(
             "Home Assistant MCP connection test failed (%s)", type(err).__name__
@@ -172,18 +181,27 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         current_ca = self.config_entry.options.get(
             CONF_MCP_CA_CERT, self.config_entry.data.get(CONF_MCP_CA_CERT, "")
         )
+        current_url = self.config_entry.options.get(
+            CONF_MCP_SERVER_URL,
+            self.config_entry.data.get(CONF_MCP_SERVER_URL, DEFAULT_MCP_SERVER_URL),
+        )
         errors = {}
         if user_input is not None:
             user_input = dict(user_input)
             user_input[CONF_MCP_CA_CERT] = user_input.get(CONF_MCP_CA_CERT, "").strip()
+            user_input[CONF_MCP_SERVER_URL] = user_input.get(
+                CONF_MCP_SERVER_URL, current_url
+            ).strip()
             try:
-                if user_input[CONF_MCP_CA_CERT] != current_ca:
+                if (
+                    user_input[CONF_MCP_CA_CERT] != current_ca
+                    or user_input[CONF_MCP_SERVER_URL] != current_url
+                ):
                     await validate_mcp(
                         self.hass, {**self.config_entry.data, **user_input}
                     )
             except ConnectionFailed as err:
-                field = CONF_MCP_CA_CERT if err.field == CONF_MCP_CA_CERT else "base"
-                errors[field] = err.code
+                errors[err.field] = err.code
             except AuthenticationFailed:
                 errors["base"] = "authentication_failed"
             else:
@@ -191,6 +209,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         data_schema = vol.Schema(
             {
+                vol.Optional(CONF_MCP_SERVER_URL, default=current_url): str,
                 vol.Optional(CONF_MCP_CA_CERT, default=current_ca): str,
                 vol.Optional(
                     CONF_SCAN_INTERVAL,

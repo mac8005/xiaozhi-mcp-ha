@@ -12,6 +12,7 @@ from typing import Any
 import websockets
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -24,12 +25,13 @@ from .const import (
     CONF_MCP_CA_CERT,
     CONNECTION_MONITOR_INTERVAL,
     CONNECTION_TIMEOUT,
+    DOMAIN,
     INITIAL_BACKOFF,
     MAX_BACKOFF,
     MAX_CONSECUTIVE_FAILURES,
     MAX_RECONNECT_ATTEMPTS,
 )
-from .mcp_client import XiaozhiMCPClient
+from .mcp_client import MCPServerError, XiaozhiMCPClient
 from .security import (
     MAX_MESSAGE_BYTES,
     WEBSOCKET_LOGGER,
@@ -85,6 +87,25 @@ class XiaozhiMCPCoordinator(DataUpdateCoordinator):
 
     async def async_setup(self) -> None:
         self._initialize_logger_levels()
+        issue_id = f"mcp_server_{self.config_entry.entry_id}"
+        try:
+            await self._mcp_client.check_connection()
+        except MCPServerError as err:
+            _LOGGER.warning("MCP startup check: %s", err)
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=err.code,
+                translation_placeholders={"name": self.name},
+            )
+            raise
+        except Exception:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            raise
+        ir.async_delete_issue(self.hass, DOMAIN, issue_id)
         await self.async_reconnect()
         self._connection_monitor_task = asyncio.create_task(
             self._connection_monitor_loop()

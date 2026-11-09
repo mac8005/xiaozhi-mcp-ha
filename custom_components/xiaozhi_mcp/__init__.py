@@ -12,6 +12,7 @@ from homeassistant.const import CONF_NAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import issue_registry as ir
 
 from .config_schema import CONFIG_SCHEMA as CONFIG_SCHEMA
 from .const import (
@@ -46,7 +47,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     scan_interval = entry.options.get(
         CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     )
-    mcp_server_url = entry.data.get(CONF_MCP_SERVER_URL, DEFAULT_MCP_SERVER_URL)
+    mcp_server_url = entry.options.get(
+        CONF_MCP_SERVER_URL,
+        entry.data.get(CONF_MCP_SERVER_URL, DEFAULT_MCP_SERVER_URL),
+    )
 
     _LOGGER.info("Setting up Xiaozhi MCP: %s", name)
 
@@ -123,6 +127,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove any startup warning belonging to this integration entry."""
+    ir.async_delete_issue(hass, DOMAIN, f"mcp_server_{entry.entry_id}")
 
 
 async def _async_setup_services(

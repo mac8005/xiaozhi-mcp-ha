@@ -146,6 +146,7 @@ Once configured, your Xiaozhi device can:
 | `name`             | Friendly name for the integration | Yes      | -       |
 | `xiaozhi_endpoint` | Xiaozhi MCP endpoint URL          | Yes      | -       |
 | `access_token`     | Long-lived access token           | Yes      | -       |
+| `mcp_server_url` | Home Assistant legacy SSE URL; editable in Configure | No | `http://localhost:8123/mcp_server/sse` |
 | `mcp_ca_cert`      | Absolute PEM certificate path for Home Assistant MCP only | No | Empty (default trust) |
 | `scan_interval`    | Status check interval (seconds)   | No       | 30      |
 | `enable_logging`   | Enable detailed logging           | No       | False   |
@@ -166,6 +167,18 @@ Once configured, your Xiaozhi device can:
 There are two authenticated connections. The Xiaozhi credential stays in the full WebSocket URL; the dedicated token field belongs to Home Assistant. Version 0.0.27 identifies which connection failed.
 
 For MCP server failures, confirm that the official MCP Server integration is configured. `http://localhost:8123/mcp_server/sse` works only if HA actually listens there over HTTP. If HA serves HTTPS directly, use its matching trusted HTTPS hostname; verify that Home Assistant itself can resolve it. A reverse proxy and the internal HA listener can use different schemes/ports. Do not disable TLS verification or expose HA publicly to fix local connectivity.
+
+### MCP endpoint startup checks
+
+Version 0.0.29 checks the configured MCP endpoint at startup and reload, requiring a valid SSE endpoint announcement within five seconds after the HTTP response. Setup and changed connection options use the same check.
+
+- Use the legacy SSE URL ending in `/mcp_server/sse`. This bridge does not support Streamable HTTP URLs such as `/api/mcp`, and `/api/mcp_http` is not a supported replacement.
+- Keep Home Assistant's native MCP Server enabled: it is a required dependency. Its `/api/mcp` and `/mcp_server/sse` routes coexist normally. Other AI integrations being installed is not itself a conflict.
+- If the server explicitly reports multiple loaded MCP Server configurations, keep one intended native server configuration enabled. Disable only the duplicate server configurations, not all MCP services.
+- A missing route (HTTP 404/405), HTML/JSON response or missing/invalid SSE endpoint announcement produces an actionable setup error. At startup these failures also produce a warning in **Settings > System > Repairs**, scoped to the affected Xiaozhi entry. Check the configured URL and proxy/service routing; these symptoms alone do not identify which third-party integration is responsible.
+- Correct the **MCP Server URL** under **Settings > Devices & Services > Xiaozhi MCP > Configure**. Saving a changed URL validates it and reloads the integration. The repair clears after a successful startup check, or when the entry is removed.
+
+TLS and authentication failures remain separate from endpoint diagnostics. The check does not disable services, modify routes or expose response bodies/tokens in repair messages. It cannot reliably identify an unnamed third-party service from its presence alone.
 
 ### Local HTTPS with a private CA or self-signed certificate
 

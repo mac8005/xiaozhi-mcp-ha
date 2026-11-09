@@ -37,7 +37,11 @@
             "xiaozhi_tls_failed": "Cannot verify the Xiaozhi TLS certificate. Check the hostname, system clock and trusted certificate chain.",
             "mcp_connection_failed": "Cannot reach the Home Assistant MCP SSE server. Install/configure MCP Server and check this URL, DNS, port and HTTP/HTTPS scheme.",
             "mcp_tls_failed": "Cannot verify the Home Assistant MCP TLS certificate. Check its validity, trusted CA and matching hostname or IP address in Subject Alternative Name.",
-            "mcp_ca_invalid": "Cannot load the MCP CA certificate. Use an absolute path to a readable PEM certificate file inside Home Assistant, not a private key."
+            "mcp_ca_invalid": "Cannot load the MCP CA certificate. Use an absolute path to a readable PEM certificate file inside Home Assistant, not a private key.",
+            "mcp_wrong_transport": "This bridge requires the Home Assistant MCP SSE URL ending in /mcp_server/sse. /api/mcp and /api/mcp_http are not supported by this bridge. Keep the native MCP Server enabled.",
+            "mcp_multiple_servers": "Home Assistant reports multiple loaded MCP Server configurations. Keep one intended native MCP Server configuration enabled and disable only duplicate server configurations. Other AI clients are not automatically conflicts.",
+            "mcp_endpoint_unavailable": "The MCP endpoint returned HTTP 404 or 405. Check the URL ending in /mcp_server/sse, enable/configure the native MCP Server, and check whether a proxy or another service handles that path.",
+            "mcp_invalid_response": "The endpoint did not provide a valid MCP SSE handshake within five seconds. Check the URL ending in /mcp_server/sse and proxy routing; another service may be returning HTML, JSON or an incompatible stream."
         },
         "abort": {
             "already_configured": "This Xiaozhi MCP endpoint is already configured",
@@ -52,10 +56,12 @@
                 "data": {
                     "scan_interval": "Scan Interval (seconds)",
                     "enable_logging": "Enable Debug Logging",
-                    "mcp_ca_cert": "Home Assistant MCP CA certificate"
+                    "mcp_ca_cert": "Home Assistant MCP CA certificate",
+                    "mcp_server_url": "MCP Server URL"
                 },
                 "data_description": {
-                    "mcp_ca_cert": "Optional absolute path to a trusted PEM CA certificate or self-signed server certificate, e.g. /config/certs/ha-ca.pem. Leave blank for default trust. Applies only to Home Assistant MCP; hostname verification remains enabled."
+                    "mcp_ca_cert": "Optional absolute path to a trusted PEM CA certificate or self-signed server certificate, e.g. /config/certs/ha-ca.pem. Leave blank for default trust. Applies only to Home Assistant MCP; hostname verification remains enabled.",
+                    "mcp_server_url": "Home Assistant legacy SSE URL ending in /mcp_server/sse. Changes are checked before saving."
                 }
             }
         },
@@ -63,7 +69,12 @@
             "mcp_ca_invalid": "Cannot load the MCP CA certificate. Use an absolute path to a readable PEM certificate file inside Home Assistant, not a private key.",
             "mcp_tls_failed": "Cannot verify the Home Assistant MCP TLS certificate. Check its validity, trusted CA and matching hostname or IP address in Subject Alternative Name.",
             "mcp_connection_failed": "Cannot reach the Home Assistant MCP SSE server. Install/configure MCP Server and check this URL, DNS, port and HTTP/HTTPS scheme.",
-            "authentication_failed": "Home Assistant rejected this token. Use a Home Assistant long-lived access token, not the token from the Xiaozhi URL."
+            "authentication_failed": "Home Assistant rejected this token. Use a Home Assistant long-lived access token, not the token from the Xiaozhi URL.",
+            "mcp_wrong_transport": "This bridge requires the Home Assistant MCP SSE URL ending in /mcp_server/sse. /api/mcp and /api/mcp_http are not supported by this bridge. Keep the native MCP Server enabled.",
+            "mcp_multiple_servers": "Home Assistant reports multiple loaded MCP Server configurations. Keep one intended native MCP Server configuration enabled and disable only duplicate server configurations. Other AI clients are not automatically conflicts.",
+            "mcp_endpoint_unavailable": "The MCP endpoint returned HTTP 404 or 405. Check the URL ending in /mcp_server/sse, enable/configure the native MCP Server, and check whether a proxy or another service handles that path.",
+            "mcp_invalid_response": "The endpoint did not provide a valid MCP SSE handshake within five seconds. Check the URL ending in /mcp_server/sse and proxy routing; another service may be returning HTML, JSON or an incompatible stream.",
+            "invalid_endpoint": "Use a valid TLS URL; plaintext is allowed only on loopback"
         }
     },
     "services": {
@@ -90,6 +101,24 @@
                     "description": "Required when multiple bridges are configured"
                 }
             }
+        }
+    },
+    "issues": {
+        "mcp_wrong_transport": {
+            "title": "Check the MCP server for {name}",
+            "description": "This bridge requires the Home Assistant MCP SSE URL ending in /mcp_server/sse. /api/mcp and /api/mcp_http are not supported by this bridge. Keep the native MCP Server enabled.\n\nOpen Settings > Devices & Services > Xiaozhi MCP > Configure to correct the MCP Server URL. After correcting the server or proxy configuration, reload this integration. This warning clears when the startup check succeeds."
+        },
+        "mcp_multiple_servers": {
+            "title": "Check the MCP server for {name}",
+            "description": "Home Assistant reports multiple loaded MCP Server configurations. Keep one intended native MCP Server configuration enabled and disable only duplicate server configurations. Other AI clients are not automatically conflicts.\n\nOpen Settings > Devices & Services > Xiaozhi MCP > Configure to correct the MCP Server URL. After correcting the server or proxy configuration, reload this integration. This warning clears when the startup check succeeds."
+        },
+        "mcp_endpoint_unavailable": {
+            "title": "Check the MCP server for {name}",
+            "description": "The MCP endpoint returned HTTP 404 or 405. Check the URL ending in /mcp_server/sse, enable/configure the native MCP Server, and check whether a proxy or another service handles that path.\n\nOpen Settings > Devices & Services > Xiaozhi MCP > Configure to correct the MCP Server URL. After correcting the server or proxy configuration, reload this integration. This warning clears when the startup check succeeds."
+        },
+        "mcp_invalid_response": {
+            "title": "Check the MCP server for {name}",
+            "description": "The endpoint did not provide a valid MCP SSE handshake within five seconds. Check the URL ending in /mcp_server/sse and proxy routing; another service may be returning HTML, JSON or an incompatible stream.\n\nOpen Settings > Devices & Services > Xiaozhi MCP > Configure to correct the MCP Server URL. After correcting the server or proxy configuration, reload this integration. This warning clears when the startup check succeeds."
         }
     }
 }
