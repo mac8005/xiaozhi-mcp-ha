@@ -1,8 +1,8 @@
 # Status
-Updated: 2026-11-08
+Updated: 2026-11-09
 
 ## In flight
-- None. Version 0.0.28 published and verified; release instructions posted in Discussion #34. Reporter device confirmation pending.
+- Discussion #34 reporter still sees TLS failure; inspected file has the correct IP SAN. Installed version/restart, exact CA path and live certificate verification remain unconfirmed.
 
 ## Decisions
 - Scope custom CA trust to the Home Assistant MCP client; preserve hostname verification and default Xiaozhi cloud trust.
@@ -11,7 +11,7 @@ Updated: 2026-11-08
 - See [security review](2026-10-21-security-review.md) and [0.0.27 setup follow-up](2026-10-21-setup-followup.md).
 
 ## Next
-1. Await Discussion #34 reporter confirmation after updating to 0.0.28 and configuring the PEM certificate path.
+1. Await Discussion #34 version/restart confirmation, exact CA setting and OpenSSL live verification result.
 2. Review reporter confirmation on #29/#30/#31 and any private security report.
 
 ## Gotchas
@@ -21,6 +21,7 @@ Updated: 2026-11-08
 - Use short pytest parameter IDs for large payload fixtures to avoid oversized CI log lines.
 
 ## Log
+- 2026-11-09: Read continuing TLS failure and correct IP SAN report; posted and verified diagnostic reply 19484393 requesting loaded version, exact trust path and live TLS verification.
 - 2026-11-08: Released v0.0.28 at 9f93f67; workflow 42521516472 passed. Downloaded ZIP checksum and all 13 files verified. Discussion #34 reply 19478896 posted and read back.
 - 2026-11-08: Main CI 42521372497 passed tests, lint, security, Hassfest and HACS; tagged 9f93f67 as v0.0.28 for release.
 - 2026-11-08: Implemented 0.0.28 custom CA setup/options and isolated SSE/POST trust; 58 tests pass on both HA versions, lint/format/diff and medium/high security checks pass.
